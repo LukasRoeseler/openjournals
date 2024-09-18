@@ -1,10 +1,3 @@
----
-title: "Readme"
-author: "Lukas Röseler"
-date: "`r Sys.Date()`"
-output: html_document
----
-
 ## Open Journals Database
 
 This project aims to combine databases with journal metrics and to let users explore them.
