@@ -49,5 +49,7 @@ topranks <- data.frame("top" = c("Data.citation.score"
                        , "adoption" = colSums(topfactortable>0, na.rm = TRUE)/nrow(topfactortable)
 )
 
+topranks$top <- substr(topranks$top, 0, nchar(topranks$top)-6)
+
 ggplot(topranks, aes(x = adoption, y = top)) + geom_bar(stat = "identity", col = "black", fill = "grey") + xlab("Proportion of Journals with Score > 0") + ylab("TOP Criterion") +
   theme_bw() + xlim(c(0, 1))
