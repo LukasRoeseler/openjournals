@@ -1,6 +1,6 @@
 # Read TOPfactor.org Data -------------------------------------------------
-library(ggplot2)
-library(ggpubr)
+# library(ggplot2)
+# library(ggpubr)
 
 
 topfactor <- read.csv("https://osf.io/qatkz/download/")
