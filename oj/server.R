@@ -1,15 +1,6 @@
 
 
-# Load Packages -----------------------------------------------------------
 
-source("https://raw.githubusercontent.com/LukasRoeseler/openjournals/refs/heads/main/packages.R")
-
-
-# read databases
-
-
-# combine databases
-source("https://raw.githubusercontent.com/LukasRoeseler/openjournals/refs/heads/main/combine_data.R")
 
 
 # Define server logic required to draw a histogram
