@@ -7,6 +7,7 @@ if(length(new.packages)) install.packages(new.packages)
 # devtools::install_github("ikashnitsky/sjrdata")
 
 # load packages
+library(shiny)
 library(ggplot2)
 library(psych)
 library(devtools)
