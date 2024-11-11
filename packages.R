@@ -8,6 +8,7 @@ if(length(new.packages)) install.packages(new.packages)
 
 # load packages
 library(shiny)
+library(DT)
 library(ggplot2)
 library(psych)
 library(devtools)
