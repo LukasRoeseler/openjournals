@@ -1,14 +1,20 @@
 # Load Packages -----------------------------------------------------------
 
-# source("https://raw.githubusercontent.com/LukasRoeseler/openjournals/refs/heads/main/packages.R")
+source("https://raw.githubusercontent.com/LukasRoeseler/openjournals/refs/heads/main/packages.R")
 
 
-# # read databases
-# source("https://raw.githubusercontent.com/LukasRoeseler/openjournals/refs/heads/main/read_data/read_scimago.R")
-# source("https://raw.githubusercontent.com/LukasRoeseler/openjournals/refs/heads/main/read_data/read_topfactor.R")
-# 
-# # combine databases
-# source("https://raw.githubusercontent.com/LukasRoeseler/openjournals/refs/heads/main/combine_data.R")
+# read databases
+source("https://raw.githubusercontent.com/LukasRoeseler/openjournals/refs/heads/main/read_data/read_scimago.R")
+source("https://raw.githubusercontent.com/LukasRoeseler/openjournals/refs/heads/main/read_data/read_topfactor.R")
+# source("https://raw.githubusercontent.com/LukasRoeseler/openjournals/refs/heads/main/read_data/read_fred.R")
+# source("https://raw.githubusercontent.com/LukasRoeseler/openjournals/refs/heads/main/read_data/read_i4rreproductions.R")
+# source("https://raw.githubusercontent.com/LukasRoeseler/openjournals/refs/heads/main/read_data/read_nordiclist.R")
+# source("https://raw.githubusercontent.com/LukasRoeseler/openjournals/refs/heads/main/read_data/read_retractions.R")
+# source("https://raw.githubusercontent.com/LukasRoeseler/openjournals/refs/heads/main/read_data/read_rwhjc.R")
+# source("https://raw.githubusercontent.com/LukasRoeseler/openjournals/refs/heads/main/read_data/read_vhb.R")
+
+# combine databases
+source("https://raw.githubusercontent.com/LukasRoeseler/openjournals/refs/heads/main/combine_data.R")
 
 
 
@@ -26,7 +32,9 @@ ui <- fluidPage(
             dataTableOutput("ojtable")
         )
                )
-        , tabPanel("Summary"
+        , tabPanel("Plot"
+                   , selectInput("x", "Variable 1", choices = names(oj), selected = "sjr")
+                   , selectInput("y", "Variable 2", choices = names(oj), selected = "Total")
                    , shiny::includeMarkdown("summary.md")
                    , plotly::plotlyOutput("topfactors")
                    )
@@ -71,7 +79,10 @@ for (var i = 0; i < tips.length; i++) {
   
   output$topfactors <- plotly::renderPlotly({
     
-    p <- ggplot(oj, aes(x = Total)) + geom_histogram() +
+    oj$x <- oj[, input$x]
+    oj$y <- oj[, input$y]
+    
+    p <- ggplot(oj, aes(x = x, y = y)) + geom_point() +
       theme_classic()
     
     plotly::ggplotly(p)

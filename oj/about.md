@@ -4,4 +4,4 @@ This is a proof-of-concept of a Shiny App that allows researchers to access cruc
 
 Cite as:
 
-Röseler, L. (2024). Open Journals Dashboard. *Version 0.1 from 2024-11-11*. Available at <https://github.com/LukasRoeseler/openjournals>
+Röseler, L. (2025). Open Journals Dashboard. *Version 0.2 from 2025-01-09*. Available at <https://github.com/LukasRoeseler/openjournals>
