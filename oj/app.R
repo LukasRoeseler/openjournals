@@ -23,7 +23,7 @@ source("https://raw.githubusercontent.com/LukasRoeseler/openjournals/refs/heads/
 
 ui <- fluidPage(
 
-    navbarPage("Open Journal Data v0.1"
+    navbarPage("Open Journal Data v0.2"
                
                , tabPanel("Database",
 
