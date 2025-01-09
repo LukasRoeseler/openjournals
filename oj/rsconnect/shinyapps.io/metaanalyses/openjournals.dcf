@@ -5,7 +5,7 @@ account: metaanalyses
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 13688933
-bundleId: 9627395
+bundleId: 9627448
 url: https://metaanalyses.shinyapps.io/openjournals/
 version: 1
 asMultiple: FALSE

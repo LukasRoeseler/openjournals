@@ -1,6 +1,6 @@
 ## Open Journals Database
 
-This project aims to combine databases with journal metrics and important info and to let users explore them.
+This project aims to combine databases with journal metrics and important info and to let users explore them. WIP ShinyApp: [metaanalyses.shinyapps.io/openjournals/](https://metaanalyses.shinyapps.io/openjournals/)
 
 ## Used databases
 
