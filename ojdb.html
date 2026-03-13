@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<style type="text/css">
+.inline {
+  background-color: #f7f7f7;
+  border:solid 1px #B0B0B0;
+}
+.error {
+	font-weight: bold;
+	color: #FF0000;
+}
+.warning {
+	font-weight: bold;
+}
+.message {
+	font-style: italic;
+}
+.source, .output, .warning, .error, .message {
+	padding: 0 1em;
+  border:solid 1px #F7F7F7;
+}
+.source {
+  background-color: #f5f5f5;
+}
+.left {
+  text-align: left;
+}
+.right {
+  text-align: right;
+}
+.center {
+  text-align: center;
+}
+.hl.num {
+  color: #AF0F91;
+}
+.hl.sng {
+  color: #317ECC;
+}
+.hl.com {
+  color: #AD95AF;
+  font-style: italic;
+}
+.hl.opt {
+  color: #000000;
+}
+.hl.def {
+  color: #585858;
+}
+.hl.kwa {
+  color: #295F94;
+  font-weight: bold;
+}
+.hl.kwb {
+  color: #B05A65;
+}
+.hl.kwc {
+  color: #55aa55;
+}
+.hl.kwd {
+  color: #BC5A65;
+  font-weight: bold;
+}
+</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Open Journal Data v0.2</title>
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- DataTables CSS -->
+    <link href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    <!-- Plotly.js -->
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+
+    <style>
+        :root {
+            /* Using the colors from your Shiny bs_theme */
+            --oj-primary: #094bb5;
+            --oj-secondary: #095fe8;
+            --oj-bg: #e3eeff;
+            --oj-fg: #382f2f;
+        }
+
+        body {
+            background-color: var(--oj-bg);
+            color: var(--oj-fg);
+            font-family: 'Calibri', sans-serif;
+            min-height: 100vh;
+            padding-bottom: 2rem;
+        }
+
+        .header {
+            background-color: white;
+            padding: 1.5rem 0;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            border-bottom: 3px solid var(--oj-primary);
+        }
+
+        .header h1 {
+            color: var(--oj-primary);
+            font-weight: bold;
+            margin: 0;
+        }
+
+        .nav-tabs {
+            border-bottom: 2px solid var(--oj-primary);
+            margin-bottom: 20px;
+        }
+
+        .nav-tabs .nav-link {
+            color: var(--oj-fg);
+            border: none;
+            font-size: 1.1rem;
+            padding: 10px 20px;
+        }
+
+        .nav-tabs .nav-link:hover {
+            color: var(--oj-primary);
+            background-color: rgba(9, 75, 181, 0.1);
+            border-radius: 8px 8px 0 0;
+        }
+
+        .nav-tabs .nav-link.active {
+            color: white;
+            background-color: var(--oj-primary);
+            border-radius: 8px 8px 0 0;
+        }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            border: none;
+        }
+
+        .table thead th {
+            background-color: var(--oj-primary);
+            color: white;
+            font-weight: normal;
+        }
+
+        .loading-spinner {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 3rem;
+        }
+
+        .spinner-border {
+            color: var(--oj-primary);
+        }
+
+        .guideline-link {
+            color: var(--oj-secondary);
+            text-decoration: none;
+        }
+
+        .guideline-link:hover {
+            text-decoration: underline;
+        }
+
+        /* Plot Controls container */
+        .plot-controls {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #dee2e6;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="container-fluid px-4">
+            <h1>Open Journal Data v0.2</h1>
+        </div>
+    </div>
+
+    <div class="container-fluid px-4">
+        <!-- Navigation Tabs -->
+        <ul class="nav nav-tabs" id="myTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="database-tab" data-bs-toggle="tab" data-bs-target="#database" type="button" role="tab">Database</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="plot-tab" data-bs-toggle="tab" data-bs-target="#plot" type="button" role="tab">Plot</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="about-tab" data-bs-toggle="tab" data-bs-target="#about" type="button" role="tab">About</button>
+            </li>
+        </ul>
+
+        <!-- Tab Contents -->
+        <div class="tab-content" id="myTabContent">
+            
+            <!-- DATABASE TAB -->
+            <div class="tab-pane fade show active" id="database" role="tabpanel">
+                <div class="card p-4">
+                    <div id="loading" class="loading-spinner">
+                        <div class="spinner-border" role="status"></div>
+                        <span class="ms-3">Fetching journal data from GitHub...</span>
+                    </div>
+                    <div id="error-message" class="alert alert-danger" style="display: none;"></div>
+                    
+                    <div class="table-responsive">
+                        <table id="oj-table" class="table table-striped table-hover table-bordered" style="width:100%; display: none;">
+                            <thead>
+                                <tr>
+                                    <th title="Journal name">Title</th>
+                                    <th title="ISSN">ISSN</th>
+                                    <th title="Scimago Journal Rank">SJR</th>
+                                    <th title="Hirsch Index">H-Index</th>
+                                    <th title="Number of Publications within the last three years">Total Docs (3yrs)</th>
+                                    <th title="Country">Country</th>
+                                    <th title="Publisher">Publisher</th>
+                                    <th title="TOP Factor">TOP Factor</th>
+                                    <th title="Link to author guidelines">Author Guidelines</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PLOT TAB -->
+            <div class="tab-pane fade" id="plot" role="tabpanel">
+                <div class="card p-4">
+                    <div class="row plot-controls">
+                        <div class="col-md-6">
+                            <label for="x-var" class="form-label fw-bold">Variable X</label>
+                            <select id="x-var" class="form-select"></select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="y-var" class="form-label fw-bold">Variable Y</label>
+                            <select id="y-var" class="form-select"></select>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info py-2 mb-3">
+                        Select numerical variables from the dropdowns above to explore correlations between journal metrics.
+                    </div>
+
+                    <div id="plotly-div" style="width: 100%; height: 600px;"></div>
+                </div>
+            </div>
+
+            <!-- ABOUT TAB -->
+            <div class="tab-pane fade" id="about" role="tabpanel">
+                <div class="card p-4 page-like" style="max-width: 800px; margin: 0 auto;">
+                    <h2>About Open Journal Data</h2>
+                    <hr>
+                    <p>Welcome to Open Journal Data v0.2. This web application provides an interactive overview of journal metrics including Impact Factor proxies (SJR), H-Index, and open science compliance indicators (TOP Factor).</p>
+                    <p>Data is pulled directly from the GitHub repository, ensuring that you always have the latest compiled dataset.</p>
+                    <p><strong>Variables in Dataset:</strong></p>
+                    <ul>
+                        <li><strong>SJR:</strong> SCImago Journal Rank</li>
+                        <li><strong>H-Index:</strong> Journal's Hirsch index</li>
+                        <li><strong>TOP Factor:</strong> Transparency and Openness Promotion guidelines metric</li>
+                        <li><strong>Total Docs (3 years):</strong> Volume of publication</li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- DataTables JS -->
+    <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+    <!-- PapaParse for CSV reading -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+    <script>
+        const CSV_URL = 'https://raw.githubusercontent.com/LukasRoeseler/openjournals/refs/heads/main/2026-03-13_ojdb.csv';
+        let globalData = []; // Store data for plotting
+
+        // Helper function to format guideline URLs
+        function formatUrl(url) {
+            if (!url || url === 'NA' || url.trim() === '') return '-';
+            // Ensure http prefix
+            const href = url.startsWith('http') ? url : `https://${url}`;
+            return `<a href="${href}" target="_blank" class="guideline-link">View Guidelines</a>`;
+        }
+
+        // Helper to handle "NA" from R
+        function cleanData(val) {
+            return (val === 'NA' || val === undefined) ? null : val;
+        }
+
+        function loadData() {
+            Papa.parse(CSV_URL, {
+                download: true,
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    globalData = results.data;
+                    
+                    const tableData = globalData.map(row => [
+                        cleanData(row.title) || '-',
+                        cleanData(row.issn) || '-',
+                        cleanData(row.sjr) || '-',
+                        cleanData(row.h_index) || '-',
+                        cleanData(row.total_docs_3years) || '-',
+                        cleanData(row.country) || '-',
+                        cleanData(row.publisher) || '-',
+                        cleanData(row.top_factor) || '-',
+                        formatUrl(row['Author.guideline.url'] || row['author.guideline.url'] || row['author_guideline_url'])
+                    ]);
+
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('oj-table').style.display = 'table';
+
+                    // Initialize DataTable
+                    $('#oj-table').DataTable({
+                        data: tableData,
+                        pageLength: 25,
+                        lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
+                        language: {
+                            search: "Filter Journals:"
+                        }
+                    });
+
+                    setupPlotControls();
+                },
+                error: function(error) {
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('error-message').style.display = 'block';
+                    document.getElementById('error-message').textContent = 'Error loading CSV data: ' + error.message;
+                }
+            });
+        }
+
+        function setupPlotControls() {
+            if(globalData.length === 0) return;
+
+            // Get columns (headers)
+            const headers = Object.keys(globalData[0]);
+            
+            // Try to find reasonable default axes if they exist
+            const defaultX = headers.includes('sjr') ? 'sjr' : headers[0];
+            const defaultY = headers.includes('top_factor') ? 'top_factor' : headers[1];
+
+            const xSelect = document.getElementById('x-var');
+            const ySelect = document.getElementById('y-var');
+
+            headers.forEach(header => {
+                const optX = document.createElement('option');
+                optX.value = header;
+                optX.text = header;
+                if(header === defaultX) optX.selected = true;
+                xSelect.appendChild(optX);
+
+                const optY = document.createElement('option');
+                optY.value = header;
+                optY.text = header;
+                if(header === defaultY) optY.selected = true;
+                ySelect.appendChild(optY);
+            });
+
+            // Add event listeners to redraw plot on change
+            xSelect.addEventListener('change', drawPlot);
+            ySelect.addEventListener('change', drawPlot);
+
+            // Trigger initial plot
+            drawPlot();
+        }
+
+        function drawPlot() {
+            const xVar = document.getElementById('x-var').value;
+            const yVar = document.getElementById('y-var').value;
+
+            // Extract numeric arrays (filter out 'NA' or unparseable text)
+            let xVals = [];
+            let yVals = [];
+            let titles = [];
+
+            globalData.forEach(row => {
+                const x = parseFloat(row[xVar]);
+                const y = parseFloat(row[yVar]);
+                // Only plot points where both variables are valid numbers
+                if (!isNaN(x) && !isNaN(y)) {
+                    xVals.push(x);
+                    yVals.push(y);
+                    titles.push(row.title || 'Unknown Journal');
+                }
+            });
+
+            const trace = {
+                x: xVals,
+                y: yVals,
+                text: titles,
+                mode: 'markers',
+                type: 'scatter',
+                marker: {
+                    color: '#095fe8', // secondary theme color
+                    size: 8,
+                    opacity: 0.6,
+                    line: {
+                        color: '#094bb5', // primary theme color
+                        width: 1
+                    }
+                }
+            };
+
+            const layout = {
+                title: `${yVar.toUpperCase()} vs ${xVar.toUpperCase()}`,
+                xaxis: { title: xVar, zeroline: false },
+                yaxis: { title: yVar, zeroline: false },
+                hovermode: 'closest',
+                plot_bgcolor: '#ffffff',
+                paper_bgcolor: '#ffffff',
+                margin: { l: 60, r: 30, t: 50, b: 50 }
+            };
+
+            const config = { responsive: true };
+
+            Plotly.newPlot('plotly-div', [trace], layout, config);
+        }
+
+        // Initialize when document is ready
+        $(document).ready(function() {
+            loadData();
+
+            // Handle Plotly resize issue when tab is hidden initially
+            $('button[data-bs-toggle="tab"]').on('shown.bs.tab', function (e) {
+                if (e.target.id === 'plot-tab') {
+                    Plotly.Plots.resize('plotly-div');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
