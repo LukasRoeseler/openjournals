@@ -7,19 +7,19 @@ library(shiny)
 library(DT)
 library(ggplot2)
 library(psych)
-library(devtools)
-library(sjrdata)
+# library(devtools)
+# library(sjrdata)
 library(ggplot2)
-library(ggpubr)
-library(openxlsx)
-library(RCurl)
+# library(ggpubr)
+# library(openxlsx)
+# library(RCurl)
 library(markdown)
-library(shinylive)
-library(httpuv)
+# library(shinylive)
+# library(httpuv)
 
 
 # Open Data ---------------------------------------------------------------
-oj <- read.csv("2025-04-11_ojdb.csv")
+oj <- read.csv("2026-03-13_ojdb.csv")
 
 
 # Style -------------------------------------------------------------------
