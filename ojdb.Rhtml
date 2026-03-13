@@ -1,378 +1,832 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Open Journal Data v0.2</title>
+    <title>Open Journal Metrics</title>
 
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- DataTables CSS -->
     <link href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" rel="stylesheet">
-    <!-- Plotly.js -->
-    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 
     <style>
+        /* Light & Dark Theme Variables */
         :root {
-            /* Using the colors from your Shiny bs_theme */
-            --oj-primary: #094bb5;
-            --oj-secondary: #095fe8;
-            --oj-bg: #e3eeff;
-            --oj-fg: #382f2f;
+            --primary-bg: #f5f7fa;
+            --card-bg: #ffffff;
+            --text-main: #2d3748;
+            --text-muted: #718096;
+            --border-color: #e2e8f0;
+            --header-bg-start: #1e3c72; 
+            --header-bg-end: #2a5298;   
+            --header-text: #ffffff;
+            --row-hover: #f8fafc;
+            --detail-bg: #f1f5f9;
+            --link-color: #2b6cb0;
+            --sidebar-bg: #ffffff;
+            --nav-tabs-border: #e2e8f0;
+        }
+
+        [data-theme="dark"] {
+            --primary-bg: #1a202c;
+            --card-bg: #2d3748;
+            --text-main: #f8fafc;
+            --text-muted: #cbd5e1;
+            --border-color: #4a5568;
+            --header-bg-start: #0f172a; 
+            --header-bg-end: #1e293b;
+            --header-text: #f8fafc;
+            --row-hover: #3a475a;
+            --detail-bg: #1e293b;
+            --link-color: #63b3ed;
+            --sidebar-bg: #2d3748;
+            --nav-tabs-border: #4a5568;
         }
 
         body {
-            background-color: var(--oj-bg);
-            color: var(--oj-fg);
-            font-family: 'Calibri', sans-serif;
+            background-color: var(--primary-bg);
+            color: var(--text-main);
+            font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             min-height: 100vh;
-            padding-bottom: 2rem;
+            display: flex;
+            flex-direction: column;
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
 
+        /* Header Styling */
         .header {
-            background-color: white;
+            background: linear-gradient(135deg, var(--header-bg-start) 0%, var(--header-bg-end) 100%);
+            color: var(--header-text);
             padding: 1.5rem 0;
-            margin-bottom: 2rem;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-            border-bottom: 3px solid var(--oj-primary);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .brand-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .brand-logo {
+            width: 45px;
+            height: 45px;
+            fill: var(--header-text);
         }
 
         .header h1 {
-            color: var(--oj-primary);
-            font-weight: bold;
+            font-weight: 700;
             margin: 0;
+            font-size: 1.75rem;
         }
 
+        .theme-toggle {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .theme-toggle:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.05);
+        }
+
+        /* Tabs */
         .nav-tabs {
-            border-bottom: 2px solid var(--oj-primary);
-            margin-bottom: 20px;
+            border-bottom: 2px solid var(--nav-tabs-border);
+            margin-bottom: 2rem;
+            margin-top: 1rem;
         }
-
         .nav-tabs .nav-link {
-            color: var(--oj-fg);
+            color: var(--text-muted);
             border: none;
             font-size: 1.1rem;
-            padding: 10px 20px;
+            font-weight: 600;
+            padding: 0.75rem 1.5rem;
+            transition: all 0.2s ease;
         }
-
-        .nav-tabs .nav-link:hover {
-            color: var(--oj-primary);
-            background-color: rgba(9, 75, 181, 0.1);
-            border-radius: 8px 8px 0 0;
-        }
-
+        .nav-tabs .nav-link:hover { color: var(--link-color); border: none; }
         .nav-tabs .nav-link.active {
-            color: white;
-            background-color: var(--oj-primary);
-            border-radius: 8px 8px 0 0;
-        }
-
-        .card {
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            background-color: transparent;
+            color: var(--link-color);
             border: none;
+            border-bottom: 3px solid var(--link-color);
         }
 
-        .table thead th {
-            background-color: var(--oj-primary);
-            color: white;
-            font-weight: normal;
+        /* Intro */
+        .intro-section {
+            text-align: center;
+            max-width: 800px;
+            margin: 0 auto 2rem auto;
+            padding: 0 1rem;
+        }
+        .intro-section p {
+            font-size: 1.1rem;
+            color: var(--text-muted);
+            line-height: 1.6;
         }
 
-        .loading-spinner {
+        /* Layout & Sidebar */
+        .layout-container {
             display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 3rem;
+            gap: 1.5rem;
+            align-items: flex-start;
         }
 
-        .spinner-border {
-            color: var(--oj-primary);
+        .sidebar {
+            background-color: var(--sidebar-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.25rem;
+            width: 280px;
+            flex-shrink: 0;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+            position: sticky;
+            top: 20px;
         }
 
-        .guideline-link {
-            color: var(--oj-secondary);
-            text-decoration: none;
+        .main-content {
+            flex-grow: 1;
+            min-width: 0;
         }
 
-        .guideline-link:hover {
-            text-decoration: underline;
+        .filter-section {
+            margin-bottom: 1.5rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid var(--border-color);
         }
+        .filter-section:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+        .filter-title { font-weight: 700; font-size: 1rem; margin-bottom: 1rem; color: var(--text-main); }
+        .filter-desc { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem; line-height: 1.3; display: block; }
 
-        /* Plot Controls container */
-        .plot-controls {
-            background-color: #f8f9fa;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            border: 1px solid #dee2e6;
+        .form-check-label { color: var(--text-main); font-size: 0.95rem; cursor: pointer; }
+
+        .area-search {
+            width: 100%;
+            padding: 0.5rem 0.75rem;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background-color: var(--primary-bg);
+            color: var(--text-main);
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+        }
+        .area-search:focus { outline: none; border-color: var(--link-color); }
+        .area-list { max-height: 250px; overflow-y: auto; padding-right: 5px; }
+        .area-list::-webkit-scrollbar { width: 6px; }
+        .area-list::-webkit-scrollbar-track { background: var(--primary-bg); border-radius: 4px; }
+        .area-list::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+
+        /* Search Bar */
+        .search-container { position: relative; margin-bottom: 1.5rem; }
+        .custom-search {
+            width: 100%;
+            padding: 1rem 1.5rem 1rem 3rem;
+            font-size: 1.1rem;
+            border-radius: 12px;
+            border: 2px solid var(--border-color);
+            background-color: var(--card-bg);
+            color: var(--text-main);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
+            transition: all 0.3s ease;
+        }
+        .custom-search:focus { outline: none; border-color: var(--link-color); box-shadow: 0 0 0 3px rgba(43, 108, 176, 0.1); }
+        .search-icon { position: absolute; left: 1.2rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 1.2rem; }
+
+        /* Card & Table */
+        .card { background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02); margin-bottom: 2rem; color: var(--text-main); }
+        
+        .table { color: var(--text-main); border-color: var(--border-color); margin-bottom: 0; }
+        .table > :not(caption) > * > * { background-color: var(--card-bg); color: var(--text-main); border-bottom-color: var(--border-color); }
+        .table > thead > tr > th { background-color: rgba(0, 0, 0, 0.03); border-bottom: 2px solid var(--border-color); font-weight: 600; white-space: nowrap; cursor: help; }
+        [data-theme="dark"] .table > thead > tr > th { background-color: rgba(255, 255, 255, 0.04); }
+        .table > tbody > tr > td { vertical-align: middle; }
+        .table > tbody > tr:hover > td { background-color: var(--row-hover) !important; }
+
+        td.details-control { cursor: pointer; text-align: center; color: var(--link-color); font-size: 1.1rem; width: 40px; }
+        td.details-control i { transition: transform 0.2s ease; }
+        tr.shown td.details-control i { transform: rotate(90deg); }
+
+        .detail-row { background-color: var(--detail-bg); padding: 1.5rem; border-radius: 8px; margin: 0.5rem; border: 1px solid var(--border-color); }
+        .detail-desc { margin-bottom: 1.5rem; color: var(--text-main); line-height: 1.6; }
+        .detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; }
+        .detail-item { display: flex; flex-direction: column; }
+        .detail-label { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 0.25rem; font-weight: 600; }
+        .detail-value { font-size: 1rem; color: var(--text-main); }
+        .detail-value a { color: var(--link-color); text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; }
+        .detail-value a:hover { text-decoration: underline; }
+
+        /* Badge Styling */
+        .oa-badge { font-size: 0.85rem; padding: 0.4rem 0.6rem; display: inline-flex; align-items: center; gap: 0.4rem; white-space: nowrap; border-radius: 6px; font-weight: 600; }
+        .oa-diamond { background-color: #e0f2fe; color: #0f172a; border: 1px solid #bae6fd; }
+        .oa-gold { background-color: #fef3c7; color: #78350f; border: 1px solid #fde68a; }
+        .oa-other { background-color: var(--primary-bg); color: var(--text-main); border: 1px solid var(--border-color); }
+        
+        .hijacker-badge { background-color: #fee2e2; color: #991b1b; font-size: 0.75rem; padding: 0.2rem 0.5rem; border-radius: 4px; font-weight: bold; margin-left: 0.5rem; display: inline-flex; align-items: center; gap: 0.2rem; }
+
+        /* Databases Tab & Guidance Tab */
+        .db-card { padding: 1.5rem; margin-bottom: 1.5rem; border-left: 4px solid var(--link-color); }
+        .db-card p, .db-card li, .db-card strong { color: var(--text-main); }
+        .db-title { font-weight: 700; color: var(--link-color); margin-bottom: 0.5rem; }
+        .db-citation { background-color: var(--primary-bg); padding: 1rem; border-radius: 6px; font-size: 0.9rem; font-family: monospace; white-space: pre-wrap; border: 1px solid var(--border-color); color: var(--text-main); overflow-x: auto; }
+
+        .guidance-section { margin-bottom: 2rem; }
+        .guidance-section h4 { color: var(--link-color); font-weight: bold; margin-bottom: 1rem; }
+        .guidance-section p { line-height: 1.7; font-size: 1.05rem; }
+
+        .dataTables_wrapper .dataTables_paginate .paginate_button { color: var(--text-main) !important; }
+        .dataTables_wrapper .dataTables_paginate .paginate_button.disabled { color: var(--text-muted) !important; }
+        .dataTables_wrapper .dataTables_length, .dataTables_wrapper .dataTables_info { color: var(--text-muted) !important; }
+        .dataTables_filter { display: none; } 
+
+        .loading-spinner { display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 4rem; color: var(--text-muted); }
+
+        .footer { margin-top: auto; text-align: center; padding: 2rem 1rem; color: var(--text-muted); border-top: 1px solid var(--border-color); background-color: var(--card-bg); }
+        .footer a { color: var(--link-color); text-decoration: none; }
+        .footer a:hover { text-decoration: underline; }
+
+        @media (max-width: 992px) {
+            .layout-container { flex-direction: column; }
+            .sidebar { width: 100%; position: static; margin-bottom: 1.5rem; }
+            .area-list { max-height: 200px; }
         }
     </style>
 </head>
 <body>
 
-    <div class="header">
-        <div class="container-fluid px-4">
-            <h1>Open Journal Data v0.2</h1>
+    <!-- Header -->
+    <header class="header">
+        <div class="container header-content">
+            <div class="brand-container">
+                <svg class="brand-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M 5,90 L 95,90" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+                    <path d="M 15,90 L 15,55 L 28,55 L 35,62 L 35,90 Z" fill="currentColor"/>
+                    <line x1="19" y1="65" x2="31" y2="65" stroke="var(--header-bg-start)" stroke-width="2"/>
+                    <line x1="19" y1="72" x2="31" y2="72" stroke="var(--header-bg-start)" stroke-width="2"/>
+                    <line x1="19" y1="79" x2="31" y2="79" stroke="var(--header-bg-start)" stroke-width="2"/>
+                    <path d="M 40,90 L 40,40 L 53,40 L 60,47 L 60,90 Z" fill="currentColor"/>
+                    <line x1="44" y1="52" x2="56" y2="52" stroke="var(--header-bg-start)" stroke-width="2"/>
+                    <line x1="44" y1="60" x2="56" y2="60" stroke="var(--header-bg-start)" stroke-width="2"/>
+                    <line x1="44" y1="68" x2="56" y2="68" stroke="var(--header-bg-start)" stroke-width="2"/>
+                    <line x1="44" y1="76" x2="56" y2="76" stroke="var(--header-bg-start)" stroke-width="2"/>
+                    <path d="M 65,90 L 65,20 L 78,20 L 85,27 L 85,90 Z" fill="currentColor"/>
+                    <line x1="69" y1="35" x2="81" y2="35" stroke="var(--header-bg-start)" stroke-width="2"/>
+                    <line x1="69" y1="45" x2="81" y2="45" stroke="var(--header-bg-start)" stroke-width="2"/>
+                    <line x1="69" y1="55" x2="81" y2="55" stroke="var(--header-bg-start)" stroke-width="2"/>
+                    <line x1="69" y1="65" x2="81" y2="65" stroke="var(--header-bg-start)" stroke-width="2"/>
+                    <line x1="69" y1="75" x2="81" y2="75" stroke="var(--header-bg-start)" stroke-width="2"/>
+                    <path d="M 28,55 L 28,62 L 35,62" fill="none" stroke="var(--header-bg-start)" stroke-width="2"/>
+                    <path d="M 53,40 L 53,47 L 60,47" fill="none" stroke="var(--header-bg-start)" stroke-width="2"/>
+                    <path d="M 78,20 L 78,27 L 85,27" fill="none" stroke="var(--header-bg-start)" stroke-width="2"/>
+                </svg>
+                <h1>Open Journal Metrics</h1>
+            </div>
+            <button class="theme-toggle" id="themeToggle" title="Toggle Dark/Light Mode">
+                <i class="fas fa-moon" id="themeIcon"></i>
+            </button>
         </div>
-    </div>
+    </header>
 
-    <div class="container-fluid px-4">
-        <!-- Navigation Tabs -->
-        <ul class="nav nav-tabs" id="myTab" role="tablist">
+    <div class="container flex-grow-1">
+
+        <ul class="nav nav-tabs" id="mainTabs" role="tablist">
             <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="database-tab" data-bs-toggle="tab" data-bs-target="#database" type="button" role="tab">Database</button>
+                <button class="nav-link active" id="dashboard-tab" data-bs-toggle="tab" data-bs-target="#dashboard" type="button" role="tab">Metrics Dashboard</button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link" id="plot-tab" data-bs-toggle="tab" data-bs-target="#plot" type="button" role="tab">Plot</button>
+                <button class="nav-link" id="databases-tab" data-bs-toggle="tab" data-bs-target="#databases" type="button" role="tab">Included Databases</button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link" id="about-tab" data-bs-toggle="tab" data-bs-target="#about" type="button" role="tab">About</button>
+                <button class="nav-link" id="guidance-tab" data-bs-toggle="tab" data-bs-target="#guidance" type="button" role="tab">Guidance</button>
             </li>
         </ul>
 
-        <!-- Tab Contents -->
         <div class="tab-content" id="myTabContent">
             
-            <!-- DATABASE TAB -->
-            <div class="tab-pane fade show active" id="database" role="tabpanel">
-                <div class="card p-4">
-                    <div id="loading" class="loading-spinner">
-                        <div class="spinner-border" role="status"></div>
-                        <span class="ms-3">Fetching journal data from GitHub...</span>
+            <!-- Dashboard Tab -->
+            <div class="tab-pane fade show active" id="dashboard" role="tabpanel">
+                <div class="intro-section">
+                    <p>Researchers often choose academic journals based on metrics. This dashboard facilitates the comparison of traditional impact metrics and open science practices, empowering you to make informed publishing decisions.</p>
+                </div>
+
+                <div class="layout-container">
+                    <!-- Sidebar -->
+                    <div class="sidebar">
+                        
+                        <div class="filter-section">
+                            <h5 class="filter-title">Open Access Status</h5>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="radio" name="oaFilter" id="oaAll" value="All" checked>
+                                <label class="form-check-label" for="oaAll">All Journals</label>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="radio" name="oaFilter" id="oaDiamond" value="Diamond">
+                                <label class="form-check-label fw-bold text-info" style="filter: brightness(0.8);" for="oaDiamond" data-bs-toggle="tooltip" title="Free to read & free to publish (no APCs).">
+                                    <i class="fas fa-gem"></i> Diamond
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="oaFilter" id="oaGold" value="Gold">
+                                <label class="form-check-label fw-bold text-warning" style="filter: brightness(0.8);" for="oaGold" data-bs-toggle="tooltip" title="Free to read, but may charge publishing fees (APCs).">
+                                    <i class="fas fa-medal"></i> Gold
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="filter-section">
+                            <h5 class="filter-title">Data Quality</h5>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="hideHijackers" checked>
+                                <label class="form-check-label" for="hideHijackers">Hide Hijacker Journals</label>
+                                <span class="filter-desc">Removes fraudulent clones of authentic journals from the list.</span>
+                            </div>
+                        </div>
+
+                        <div class="filter-section">
+                            <h5 class="filter-title">Filter by Area</h5>
+                            <input type="text" id="areaSearch" class="area-search" placeholder="Search areas...">
+                            <div class="area-list" id="areaList">
+                                <!-- Checkboxes injected by JS -->
+                            </div>
+                        </div>
+
                     </div>
-                    <div id="error-message" class="alert alert-danger" style="display: none;"></div>
-                    
-                    <div class="table-responsive">
-                        <table id="oj-table" class="table table-striped table-hover table-bordered" style="width:100%; display: none;">
-                            <thead>
-                                <tr>
-                                    <th title="Journal name">Title</th>
-                                    <th title="ISSN">ISSN</th>
-                                    <th title="Scimago Journal Rank">SJR</th>
-                                    <th title="Hirsch Index">H-Index</th>
-                                    <th title="Number of Publications within the last three years">Total Docs (3yrs)</th>
-                                    <th title="Country">Country</th>
-                                    <th title="Publisher">Publisher</th>
-                                    <th title="TOP Factor">TOP Factor</th>
-                                    <th title="Link to author guidelines">Author Guidelines</th>
-                                </tr>
-                            </thead>
-                            <tbody></tbody>
-                        </table>
+
+                    <!-- Main Table Content -->
+                    <div class="main-content">
+                        <div class="search-container">
+                            <i class="fas fa-search search-icon"></i>
+                            <input type="text" id="customSearch" class="custom-search" placeholder="Search for a journal, publisher, or ISSN..." autocomplete="off">
+                        </div>
+
+                        <div class="card p-3 p-md-4">
+                            <div id="loading" class="loading-spinner">
+                                <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;"></div>
+                                <h5>Loading journal data...</h5>
+                            </div>
+                            
+                            <div id="error-message" class="alert alert-danger" style="display: none;"></div>
+                            
+                            <div class="table-responsive">
+                                <table id="oj-table" class="table" style="width:100%; display: none;">
+                                    <thead>
+                                        <tr>
+                                            <th></th>
+                                            <th data-bs-toggle="tooltip" title="Name of the Journal">Title <i class="fas fa-info-circle ms-1 text-muted"></i></th>
+                                            <th data-bs-toggle="tooltip" title="Open Access Publishing Model">OA Status</th>
+                                            <th data-bs-toggle="tooltip" title="International Standard Serial Number">ISSN</th>
+                                            <th data-bs-toggle="tooltip" title="SCImago Journal Rank">SJR</th>
+                                            <th data-bs-toggle="tooltip" title="Hirsch Index">H-Index</th>
+                                            <th data-bs-toggle="tooltip" title="Number of publications in the last 3 years">Total Docs</th>
+                                            <th data-bs-toggle="tooltip" title="Total number of retractions">Retractions</th>
+                                            <th data-bs-toggle="tooltip" title="Transparency and Openness Promotion">TOP Factor</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- PLOT TAB -->
-            <div class="tab-pane fade" id="plot" role="tabpanel">
-                <div class="card p-4">
-                    <div class="row plot-controls">
-                        <div class="col-md-6">
-                            <label for="x-var" class="form-label fw-bold">Variable X</label>
-                            <select id="x-var" class="form-select"></select>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="y-var" class="form-label fw-bold">Variable Y</label>
-                            <select id="y-var" class="form-select"></select>
-                        </div>
-                    </div>
+            <!-- Included Databases Tab -->
+            <div class="tab-pane fade" id="databases" role="tabpanel">
+                <div class="card p-4 border-0 shadow-sm">
+                    <h2 class="mb-4">Included Databases & Sources</h2>
                     
-                    <div class="alert alert-info py-2 mb-3">
-                        Select numerical variables from the dropdowns above to explore correlations between journal metrics.
+                    <div class="alert alert-secondary mb-4" style="line-height: 1.6;">
+                        <i class="fas fa-hands-helping me-2"></i> This dashboard builds on the work of many researchers and merely merges existing data. 
+                        If you work with this tool or find it helpful, please know that all credit should go to 
+                        the creators of the subsequent databases. Please use the recommended citations when utilizing this data.
                     </div>
 
-                    <div id="plotly-div" style="width: 100%; height: 600px;"></div>
+                    <div class="alert alert-info py-2 mb-4" style="font-size: 0.9rem;">
+                        <i class="fas fa-info-circle me-1"></i> <strong>Note on TOP Factor:</strong> As of February 2025, TOP Factor scores will no longer be added or updated. The information on this page is for general reference only. Please go directly to journal or publisher pages to see their current policies.
+                    </div>
+                    
+                    <div class="db-card card bg-transparent">
+                        <h4 class="db-title">SCImago Journal Data</h4>
+                        <p><strong>Link:</strong> <a href="http://www.scimagojr.com" target="_blank">http://www.scimagojr.com</a></p>
+                        <div class="db-citation">SCImago, (n.d.). SJR — SCImago Journal & Country Rank [Portal]. Retrieved from http://www.scimagojr.com</div>
+                    </div>
+
+                    <div class="db-card card bg-transparent">
+                        <h4 class="db-title">Directory of Open Access Journals (DOAJ)</h4>
+                        <p><strong>Link:</strong> <a href="https://doaj.org/docs/public-data-dump/" target="_blank">DOAJ Public Data Dump</a></p>
+                        <div class="db-citation">@misc{doaj_data,
+  author = {{Directory of Open Access Journals}},
+  title = {DOAJ Public Data Dump},
+  year = {2024},
+  url = {https://doaj.org/docs/public-data-dump/}
+}</div>
+                    </div>
+
+                    <div class="db-card card bg-transparent">
+                        <h4 class="db-title">Retractionwatch Retraction Database</h4>
+                        <p><strong>Link:</strong> <a href="https://gitlab.com/crossref/retraction-watch-data/-/blob/main/retraction_watch.csv?ref_type=heads" target="_blank">Crossref GitLab Repository</a></p>
+                    </div>
+
+                    <div class="db-card card bg-transparent">
+                        <h4 class="db-title">FORRT Library of Reproduction and Replication Attempts (FLoRA)</h4>
+                        <p><strong>Link:</strong> <a href="https://github.com/forrtproject/FReD-data/blob/main/output/citation.txt" target="_blank">Latest Citation Info</a></p>
+                        <div class="db-citation">Reference: Wallrich, L.*, & Röseler, L.*, Hartmann, H., Ashcroft-Jones, S., Doetsch, C., Kaiser, L., Schüller, S. M., Aldoh, A., Behbood, H., Elsherif, M. M., Klett, N., Krapp, J., Liu, M., Pavlović, Z., Pennington, C. R., Schütz, A., Seida, C., Siziva, K., Skvortsova, A., Aczel, B., Adelina, N., Agostini, V., Al-Hoorie, A. H., Alarie, S., Albayrak-Aydemir, N., Alzahawi, S., Anvari, F., Arriaga, P., Baker, B. J., Barth, C. L., Bauer, D. J., Becker, R., Beitner, J., Belaus, A., Bhatt, H., Bhogal, J., Boyce, V., Breemer, L., Brick, C., Brohmer, H., Brummernhenrich, B., Budd, E., Butler, A., Casula, A., Chandrashekar, S. P., Chen, S., Chung, K. L., Cockcroft, J. P., Crowe, P., Cummins, J., Daniel, A., Deane, O., Deressa, T. K., Dienlin, T., Diveica, V., Draguns, A., Dumbalska, T., Efendic, E., El Halabi, M., Enright, S., Evans, T. R., Exner, A., Farrar, B. G., Feldman, G., Fillon, A., Floyd, J., Fontana Vieira, F., Frese, J., Förster, N., Gattie, M. C., Gemmecke, C., Genschow, O., Giannouli, V., Gjoneska, B., Gnambs, T., Gourdon-Kanhukamwe, A., Graham, C. J., Greshake Tzovaras, B., Guay, S., Hausenloy, J., Haviva, C., Henderson, E. L., Herderich, A., Hilbert, L., Holgado, D., Hussey, I., Höfer, L., Ilchovska, Z. G., Imada, H., Imwene, P., Izydorczak, K., Jaubert, S., Jeftić, A., Kalandadze, T., Kamermans, K., Karhulahti, V., Kasseckert, L., Kastrinogiannis, A., Klingelhöfer-Jens, M., Kocalar, H. E., Koppel, L., Koppold, A., Korbmacher, M., Kujawa, Z., Kulke, L., Kumar, P., Kuper, N., LaPlume, A. A., Lach, R., Lecuona, O., Lee, J., Leech, G., Leksina, E., Lin, C., Liu, Y., Lohkamp, F., Lou, N. M., Lynott, D., Mackinnon, S., Maier, M., Maiya, S., Makel, M. C., Manrique-Castano, D., Manríquez-Robles, D., Mathes, L., McSharry, D., Meidenbauer, K. L., Meier, M., Micheli, L., Miller, T., Montefinese, M., Moreau, D., Moser, N., Mrkva, K., Murphy, J., Muthu, J., Narkar, N., Nemcova, M., Nádvorník, J., O'Mahoney, R., O'Mahony, A., Oberholzer, Y., Oomen, D., Osano, M., Otstavnov, N., Packheiser, J., Pandey, S., Panton, H., Papenmeier, F., Parsons, S., Paruzel-Czachura, M., Pavlov, Y. G., Pittelkow, M., Plomp, W., Plonski, P. E., Pravednikov, A., Pronizius, E., Pua, A., Pypno-Blajda, K., Rausch, M., Raza, H., Reason, R., Rebholz, T. R., Resulbegoviq, H., Richert, E., Ross, R. M., Russo, S., Röer, J. P., Sandkühler, J. F., Schmidt, K., Sempere, N., Sobolak, R., Sperl, M. F., Stevens, J. R., Stogianni, M., Szekely, R., Tan, A. W., Thürmer, J. L., Tiulpakova, M., Tomczak, J., Tołopiło, A., Tunca, B., Vanpaemel, W., Vaughn, L. A., Verheyen, S., Vineyard, G. H., Weber, L., Weinberg, A., Wingen, S., Wolska, J., Yeung, S. K., Younssi, M., Zaneva, M., Zimmermann, D., Azevedo, F. (2026). FORRT Library of Replication Attempts (FLoRA) [Data set]. OSF. https://doi.org/10.17605/OSF.IO/9R62X
+
+*These authors contributed equally to this work.</div>
+                    </div>
+
+                    <div class="db-card card bg-transparent">
+                        <h4 class="db-title">Retractionwatch Hijacked Journal Checker</h4>
+                        <p><strong>Link:</strong> <a href="https://docs.google.com/spreadsheets/d/1ak985WGOgGbJRJbZFanoktAN_UFeExpE/edit?gid=5255084#gid=5255084" target="_blank">Google Sheets Dataset</a></p>
+                    </div>
+
+                    <div class="db-card card bg-transparent">
+                        <h4 class="db-title">COS TOP Factors</h4>
+                        <p>Transparency and Openness Promotion guidelines.</p>
+                    </div>
+
+                    <div class="db-card card bg-transparent mb-0">
+                        <h4 class="db-title">The Nordic List</h4>
+                        <p class="mb-0">Norwegian Register for Scientific Journals, Series and Publishers.</p>
+                    </div>
+
                 </div>
             </div>
 
-            <!-- ABOUT TAB -->
-            <div class="tab-pane fade" id="about" role="tabpanel">
-                <div class="card p-4 page-like" style="max-width: 800px; margin: 0 auto;">
-                    <h2>About Open Journal Data</h2>
-                    <hr>
-                    <p>Welcome to Open Journal Data v0.2. This web application provides an interactive overview of journal metrics including Impact Factor proxies (SJR), H-Index, and open science compliance indicators (TOP Factor).</p>
-                    <p>Data is pulled directly from the GitHub repository, ensuring that you always have the latest compiled dataset.</p>
-                    <p><strong>Variables in Dataset:</strong></p>
-                    <ul>
-                        <li><strong>SJR:</strong> SCImago Journal Rank</li>
-                        <li><strong>H-Index:</strong> Journal's Hirsch index</li>
-                        <li><strong>TOP Factor:</strong> Transparency and Openness Promotion guidelines metric</li>
-                        <li><strong>Total Docs (3 years):</strong> Volume of publication</li>
-                    </ul>
+            <!-- Guidance Tab -->
+            <div class="tab-pane fade" id="guidance" role="tabpanel">
+                <div class="card p-4 p-md-5 border-0 shadow-sm" style="max-width: 900px; margin: 0 auto;">
+                    <h2 class="mb-4 text-center">Responsible Journal Selection</h2>
+                    
+                    <div class="guidance-section mt-4">
+                        <h4>Rethinking Research Assessment</h4>
+                        <p>Traditionally, academic evaluation has heavily relied on where a researcher publishes rather than what they publish. Today, there is a growing global movement to reform research assessment. Modern evaluation frameworks prioritize the intrinsic quality, methodological rigor, and societal impact of research over the prestige of the publication venue. Open science practices—such as data sharing, preregistration, and open access—are increasingly recognized as vital components of high-quality research.</p>
+                    </div>
+
+                    <div class="guidance-section">
+                        <h4>The Limits of Journal-Level Metrics</h4>
+                        <p>Metrics like the Impact Factor and SCImago Journal Rank (SJR) calculate the <em>average</em> citation counts of a journal. It is crucial to remember that these are <strong>journal-level metrics, not article-level metrics</strong>. Because citation distributions are highly skewed (a few highly cited papers usually drive the metric), a journal's Impact Factor says very little about the quality or impact of any individual paper within it. Relying on these metrics to evaluate individual researchers can lead to biased and inaccurate assessments.</p>
+                    </div>
+
+                    <div class="guidance-section">
+                        <h4>The San Francisco Declaration on Research Assessment (DORA)</h4>
+                        <p>The <a href="https://sfdora.org/" target="_blank">San Francisco Declaration on Research Assessment (DORA)</a> is a global initiative that recognizes the urgent need to improve the ways in which the outputs of scholarly research are evaluated. DORA's core recommendation is simple but profound: <strong>do not use journal-based metrics, such as Journal Impact Factors, as a surrogate measure of the quality of individual research articles, to assess an individual scientist's contributions, or in hiring, promotion, or funding decisions.</strong></p>
+                    </div>
                 </div>
             </div>
 
         </div>
     </div>
 
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <p class="mb-0">
+                Data and Source Code available on GitHub: 
+                <a href="https://github.com/LukasRoeseler/openjournals/" target="_blank">
+                    <i class="fab fa-github ms-1"></i> github.com/LukasRoeseler/openjournals/
+                </a>
+            </p>
+        </div>
+    </footer>
+
     <!-- Scripts -->
-    <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-    <!-- Bootstrap JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- DataTables JS -->
     <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
-    <!-- PapaParse for CSV reading -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 
     <script>
         const CSV_URL = 'https://raw.githubusercontent.com/LukasRoeseler/openjournals/refs/heads/main/2026-03-13_ojdb.csv';
-        let globalData = []; // Store data for plotting
 
-        // Helper function to format guideline URLs
+        let selectedAreas = new Set();
+        let table; 
+
+        // Theme Setup
+        const themeToggleBtn = document.getElementById('themeToggle');
+        const themeIcon = document.getElementById('themeIcon');
+        
+        function setTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem('theme', theme);
+            themeIcon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+        }
+
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            setTheme(savedTheme);
+        } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            setTheme('dark');
+        }
+
+        themeToggleBtn.addEventListener('click', () => {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            setTheme(currentTheme === 'light' ? 'dark' : 'light');
+        });
+
+        function initTooltips() {
+            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.map(t => new bootstrap.Tooltip(t));
+        }
+
+        // Helpers
+        function extractVal(row, keys) {
+            for (let key of keys) {
+                if (row[key] !== undefined && row[key] !== null && String(row[key]).trim() !== 'NA') {
+                    return String(row[key]).trim();
+                }
+            }
+            return ''; 
+        }
+
+        function formatDisplay(val) { return val ? val : '<span class="text-muted">Not Available</span>'; }
+        
         function formatUrl(url) {
-            if (!url || url === 'NA' || url.trim() === '') return '-';
-            // Ensure http prefix
+            if (!url) return '<span class="text-muted">Not Available</span>';
             const href = url.startsWith('http') ? url : `https://${url}`;
-            return `<a href="${href}" target="_blank" class="guideline-link">View Guidelines</a>`;
+            return `<a href="${href}" target="_blank"><i class="fas fa-external-link-alt"></i> View Guidelines</a>`;
         }
 
-        // Helper to handle "NA" from R
-        function cleanData(val) {
-            return (val === 'NA' || val === undefined) ? null : val;
+        function getOABadge(model) {
+            if (!model) return '<span class="oa-badge oa-other text-muted">Unknown</span>';
+            const m = model.toLowerCase();
+            if (m.includes('diamond')) return `<span class="oa-badge oa-diamond"><i class="fas fa-gem"></i> Diamond</span>`;
+            if (m.includes('gold')) return `<span class="oa-badge oa-gold"><i class="fas fa-medal"></i> Gold</span>`;
+            return `<span class="oa-badge oa-other"><i class="fas fa-lock-open text-muted"></i> ${model}</span>`;
         }
 
-        function loadData() {
+        // Expanded Row Formatting
+        function formatExpandedRow(d) {
+            let html = `<div class="detail-row">`;
+            
+            // Warnings for Hijacked status
+            if (d.is_hijacker) {
+                html += `<div class="alert alert-danger shadow-sm border-danger">
+                            <h5><i class="fas fa-exclamation-triangle"></i> Warning: Hijacker Journal</h5>
+                            <p class="mb-0">This journal has been flagged as a fraudulent/hijacker website. Researchers are strongly advised to avoid it and instead submit to the authentic journal: <strong>${d.original_journal || 'Unknown Original'}</strong>.</p>
+                         </div>`;
+            } else if (d.is_hijacked_target) {
+                html += `<div class="alert alert-warning shadow-sm border-warning">
+                            <h5><i class="fas fa-info-circle"></i> Note: Identity Hijacking Risk</h5>
+                            <p class="mb-0">The identity of this journal was hijacked by a malicious website (<em>${d.hijacker_name}</em>). Please ensure you are interacting with the authentic journal directly: <strong>${d.original_journal || d.title}</strong>.</p>
+                         </div>`;
+            }
+
+            html += `<div class="detail-desc">
+                        <div class="detail-label">Journal Description</div>
+                        <div>${formatDisplay(d.description)}</div>
+                    </div>
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <span class="detail-label">Publisher</span>
+                            <span class="detail-value">${formatDisplay(d.publisher)}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Societies</span>
+                            <span class="detail-value">${formatDisplay(d.societies)}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">APC (Article Processing Charge)</span>
+                            <span class="detail-value">${d.apc_amount ? d.apc_amount + ' ' + d.apc_currency : 'None / Not Available'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">License</span>
+                            <span class="detail-value">${formatDisplay(d.license)}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Country / Region</span>
+                            <span class="detail-value">${formatDisplay(d.country)} ${d.region ? `(${d.region})` : ''}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Coverage</span>
+                            <span class="detail-value">${formatDisplay(d.coverage)}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Areas</span>
+                            <span class="detail-value">${formatDisplay(d.areas_raw)}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Author Guidelines</span>
+                            <span class="detail-value">${formatUrl(d.guidelines)}</span>
+                        </div>
+                    </div>
+                </div>`;
+            return html;
+        }
+
+        // Custom filtering functions
+        $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
+            const rowData = table.row(dataIndex).data();
+            if (!rowData) return false;
+
+            // 1. Hide Hijackers Filter
+            const hideHijackers = document.getElementById('hideHijackers').checked;
+            if (hideHijackers && rowData.is_hijacker) return false;
+
+            // 2. OA Filter
+            const oaFilter = document.querySelector('input[name="oaFilter"]:checked').value;
+            const modelLower = rowData.oa_model.toLowerCase();
+            if (oaFilter === 'Diamond' && !modelLower.includes('diamond')) return false;
+            if (oaFilter === 'Gold' && !modelLower.includes('gold')) return false;
+
+            // 3. Area Filter
+            if (selectedAreas.size > 0) {
+                if (!rowData.areas_list || rowData.areas_list.length === 0) return false;
+                const hasArea = [...selectedAreas].some(area => rowData.areas_list.includes(area));
+                if (!hasArea) return false;
+            }
+
+            return true;
+        });
+
+        $(document).ready(function() {
+            initTooltips();
+
             Papa.parse(CSV_URL, {
                 download: true,
                 header: true,
                 skipEmptyLines: true,
                 complete: function(results) {
-                    globalData = results.data;
                     
-                    const tableData = globalData.map(row => [
-                        cleanData(row.title) || '-',
-                        cleanData(row.issn) || '-',
-                        cleanData(row.sjr) || '-',
-                        cleanData(row.h_index) || '-',
-                        cleanData(row.total_docs_3years) || '-',
-                        cleanData(row.country) || '-',
-                        cleanData(row.publisher) || '-',
-                        cleanData(row.top_factor) || '-',
-                        formatUrl(row['Author.guideline.url'] || row['author.guideline.url'] || row['author_guideline_url'])
-                    ]);
+                    let allUniqueAreas = new Set();
 
-                    document.getElementById('loading').style.display = 'none';
-                    document.getElementById('oj-table').style.display = 'table';
+                    const dataset = results.data.map(row => {
+                        let areasArr = [];
+                        let rawAreas = extractVal(row, ['areas', 'Areas']);
+                        if (rawAreas) {
+                            areasArr = rawAreas.split(';').map(a => a.trim()).filter(a => a.length > 0);
+                            areasArr.forEach(a => allUniqueAreas.add(a));
+                        }
 
-                    // Initialize DataTable
-                    $('#oj-table').DataTable({
-                        data: tableData,
-                        pageLength: 25,
-                        lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
-                        language: {
-                            search: "Filter Journals:"
+                        const currentIssn = extractVal(row, ['issn']);
+                        const hijackedIssn = extractVal(row, ['ISSN.(Hijacked)', 'issn_hijacked', 'issn_hijacked_journal']);
+                        const hijackerName = extractVal(row, ['Hijacked-Journal.Title', 'hijacked_journal_title']);
+                        const originalName = extractVal(row, ['Original.journal', 'original_journal']);
+
+                        const isHijacker = (hijackedIssn !== '' && currentIssn !== '' && hijackedIssn.includes(currentIssn));
+                        const isHijackedTarget = (hijackerName !== '');
+
+                        return {
+                            title: extractVal(row, ['title']),
+                            issn: currentIssn,
+                            sjr: extractVal(row, ['sjr']),
+                            h_index: extractVal(row, ['h_index']),
+                            total_docs: extractVal(row, ['total_docs_3years']),
+                            retractions: extractVal(row, ['retractions', 'Retractions']) || '0',
+                            top_factor: extractVal(row, ['Total', 'total', 'top_factor']),
+                            
+                            oa_model: extractVal(row, ['oa_model', 'OA_model', 'open_access']),
+                            apc_amount: extractVal(row, ['apc_amount', 'APC_amount']),
+                            apc_currency: extractVal(row, ['apc_currency', 'APC_currency']),
+                            license: extractVal(row, ['license', 'License']),
+
+                            is_hijacker: isHijacker,
+                            is_hijacked_target: isHijackedTarget,
+                            hijacker_name: hijackerName,
+                            original_journal: originalName,
+
+                            publisher: extractVal(row, ['publisher']),
+                            country: extractVal(row, ['country']),
+                            region: extractVal(row, ['region']),
+                            coverage: extractVal(row, ['coverage']),
+                            description: extractVal(row, ['Description', 'description']),
+                            societies: extractVal(row, ['Societies', 'societies']),
+                            areas_raw: rawAreas,
+                            areas_list: areasArr,
+                            guidelines: extractVal(row, ['Author.guideline.url', 'author.guideline.url', 'author_guideline_url'])
+                        };
+                    });
+
+                    // Render Area Sidebar
+                    const areaContainer = document.getElementById('areaList');
+                    const sortedAreas = Array.from(allUniqueAreas).sort();
+                    
+                    sortedAreas.forEach(area => {
+                        const div = document.createElement('div');
+                        div.className = 'area-item';
+                        
+                        const checkbox = document.createElement('input');
+                        checkbox.type = 'checkbox';
+                        checkbox.value = area;
+                        checkbox.id = `area-${area.replace(/\s+/g, '-')}`;
+                        
+                        checkbox.addEventListener('change', function() {
+                            if (this.checked) selectedAreas.add(this.value);
+                            else selectedAreas.delete(this.value);
+                            table.draw();
+                        });
+
+                        const label = document.createElement('label');
+                        label.htmlFor = checkbox.id;
+                        label.textContent = area;
+
+                        div.appendChild(checkbox);
+                        div.appendChild(label);
+                        areaContainer.appendChild(div);
+                    });
+
+                    document.getElementById('areaSearch').addEventListener('keyup', function() {
+                        const term = this.value.toLowerCase();
+                        const items = areaContainer.querySelectorAll('.area-item');
+                        items.forEach(item => {
+                            const label = item.querySelector('label').textContent.toLowerCase();
+                            item.style.display = label.includes(term) ? 'flex' : 'none';
+                        });
+                    });
+
+                    $('#loading').hide();
+                    $('#oj-table').show();
+
+                    // Init DataTable
+                    table = $('#oj-table').DataTable({
+                        data: dataset,
+                        dom: 'rt<"row mt-3"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
+                        pageLength: 20,
+                        order: [[1, 'asc']],
+                        createdRow: function(row, data) {
+                            if (data.is_hijacker) {
+                                $(row).addClass('table-danger');
+                            }
+                        },
+                        columns: [
+                            {
+                                className: 'details-control',
+                                orderable: false,
+                                data: null,
+                                defaultContent: '<i class="fas fa-chevron-right"></i>'
+                            },
+                            { 
+                                data: 'title', 
+                                defaultContent: '',
+                                render: function(data, type, row) {
+                                    if(row.is_hijacker) {
+                                        return `<span class="text-danger fw-bold">${data}</span> <span class="hijacker-badge">🚨 HIJACKER</span>`;
+                                    }
+                                    return data;
+                                }
+                            },
+                            { 
+                                data: 'oa_model', 
+                                defaultContent: '',
+                                render: function(data) { return getOABadge(data); }
+                            },
+                            { data: 'issn', defaultContent: '' },
+                            { data: 'sjr', defaultContent: '' },
+                            { data: 'h_index', defaultContent: '' },
+                            { data: 'total_docs', defaultContent: '' },
+                            { data: 'retractions', defaultContent: '0' },
+                            { data: 'top_factor', defaultContent: '' },
+                            
+                            // Hidden searchable text
+                            { data: 'publisher', visible: false, defaultContent: '' },
+                            { data: 'description', visible: false, defaultContent: '' }
+                        ],
+                        language: { emptyTable: "No journal data matches your criteria." }
+                    });
+
+                    // Search Link
+                    $('#customSearch').on('keyup', function() {
+                        table.search(this.value).draw();
+                    });
+
+                    // Sidebar Filter Triggers
+                    $('input[name="oaFilter"]').on('change', function() { table.draw(); });
+                    $('#hideHijackers').on('change', function() { table.draw(); });
+
+                    // Expand Child Rows
+                    $('#oj-table tbody').on('click', 'td.details-control', function () {
+                        const tr = $(this).closest('tr');
+                        const row = table.row(tr);
+
+                        if (row.child.isShown()) {
+                            row.child.hide();
+                            tr.removeClass('shown');
+                        } else {
+                            row.child(formatExpandedRow(row.data())).show();
+                            tr.addClass('shown');
                         }
                     });
 
-                    setupPlotControls();
                 },
                 error: function(error) {
-                    document.getElementById('loading').style.display = 'none';
-                    document.getElementById('error-message').style.display = 'block';
-                    document.getElementById('error-message').textContent = 'Error loading CSV data: ' + error.message;
-                }
-            });
-        }
-
-        function setupPlotControls() {
-            if(globalData.length === 0) return;
-
-            // Get columns (headers)
-            const headers = Object.keys(globalData[0]);
-            
-            // Try to find reasonable default axes if they exist
-            const defaultX = headers.includes('sjr') ? 'sjr' : headers[0];
-            const defaultY = headers.includes('top_factor') ? 'top_factor' : headers[1];
-
-            const xSelect = document.getElementById('x-var');
-            const ySelect = document.getElementById('y-var');
-
-            headers.forEach(header => {
-                const optX = document.createElement('option');
-                optX.value = header;
-                optX.text = header;
-                if(header === defaultX) optX.selected = true;
-                xSelect.appendChild(optX);
-
-                const optY = document.createElement('option');
-                optY.value = header;
-                optY.text = header;
-                if(header === defaultY) optY.selected = true;
-                ySelect.appendChild(optY);
-            });
-
-            // Add event listeners to redraw plot on change
-            xSelect.addEventListener('change', drawPlot);
-            ySelect.addEventListener('change', drawPlot);
-
-            // Trigger initial plot
-            drawPlot();
-        }
-
-        function drawPlot() {
-            const xVar = document.getElementById('x-var').value;
-            const yVar = document.getElementById('y-var').value;
-
-            // Extract numeric arrays (filter out 'NA' or unparseable text)
-            let xVals = [];
-            let yVals = [];
-            let titles = [];
-
-            globalData.forEach(row => {
-                const x = parseFloat(row[xVar]);
-                const y = parseFloat(row[yVar]);
-                // Only plot points where both variables are valid numbers
-                if (!isNaN(x) && !isNaN(y)) {
-                    xVals.push(x);
-                    yVals.push(y);
-                    titles.push(row.title || 'Unknown Journal');
-                }
-            });
-
-            const trace = {
-                x: xVals,
-                y: yVals,
-                text: titles,
-                mode: 'markers',
-                type: 'scatter',
-                marker: {
-                    color: '#095fe8', // secondary theme color
-                    size: 8,
-                    opacity: 0.6,
-                    line: {
-                        color: '#094bb5', // primary theme color
-                        width: 1
-                    }
-                }
-            };
-
-            const layout = {
-                title: `${yVar.toUpperCase()} vs ${xVar.toUpperCase()}`,
-                xaxis: { title: xVar, zeroline: false },
-                yaxis: { title: yVar, zeroline: false },
-                hovermode: 'closest',
-                plot_bgcolor: '#ffffff',
-                paper_bgcolor: '#ffffff',
-                margin: { l: 60, r: 30, t: 50, b: 50 }
-            };
-
-            const config = { responsive: true };
-
-            Plotly.newPlot('plotly-div', [trace], layout, config);
-        }
-
-        // Initialize when document is ready
-        $(document).ready(function() {
-            loadData();
-
-            // Handle Plotly resize issue when tab is hidden initially
-            $('button[data-bs-toggle="tab"]').on('shown.bs.tab', function (e) {
-                if (e.target.id === 'plot-tab') {
-                    Plotly.Plots.resize('plotly-div');
+                    $('#loading').hide();
+                    $('#error-message').show().text('Error loading data: ' + error.message);
                 }
             });
         });
