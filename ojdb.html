@@ -280,8 +280,10 @@
         .table > tbody > tr > td { vertical-align: middle; }
         .table > tbody > tr:hover > td { background-color: var(--row-hover) !important; }
 
-        /* Capitalizes the master_journal_name for a cleaner look */
-        .journal-title { text-transform: capitalize; }
+        /* Journal Title - Capitalized automatically */
+        .journal-title { text-transform: capitalize; font-weight: 600; }
+        .journal-title-link { color: var(--link-color); text-decoration: none; }
+        .journal-title-link:hover { text-decoration: underline; color: var(--header-bg-start); }
 
         td.details-control { cursor: pointer; text-align: center; color: var(--link-color); font-size: 1.1rem; width: 40px; }
         td.details-control i { transition: transform 0.2s ease; }
@@ -614,23 +616,36 @@
         // Helpers
         function extractVal(row, keys) {
             for (let key of keys) {
-                if (row[key] !== undefined && row[key] !== null && String(row[key]).trim() !== 'NA') {
-                    return String(row[key]).trim();
+                let val = row[key];
+                if (val !== undefined && val !== null) {
+                    let str = String(val).trim();
+                    if (str !== '' && str.toUpperCase() !== 'NA') {
+                        return str;
+                    }
                 }
             }
-            return ''; 
+            return 'NA'; 
         }
 
-        function formatDisplay(val) { return val ? val : '<span class="text-muted">Not Available</span>'; }
+        function formatDisplay(val) { return (val && val !== 'NA') ? val : 'NA'; }
         
+        function formatISSN(val) {
+            if (!val || val === 'NA') return 'NA';
+            let cleaned = String(val).replace(/[^a-zA-Z0-9X]/gi, ''); 
+            if (cleaned.length === 8) {
+                return cleaned.substring(0, 4) + '-' + cleaned.substring(4, 8);
+            }
+            return val;
+        }
+
         function formatUrl(url) {
-            if (!url) return '<span class="text-muted">Not Available</span>';
+            if (!url || url === 'NA') return 'NA';
             const href = url.startsWith('http') ? url : `https://${url}`;
             return `<a href="${href}" target="_blank"><i class="fas fa-external-link-alt"></i> View Guidelines</a>`;
         }
 
         function getOABadge(model) {
-            if (!model) return '<span class="oa-badge oa-other text-muted">Unknown</span>';
+            if (!model || model === 'NA') return '<span class="oa-badge oa-other text-muted">Unknown</span>';
             const m = model.toLowerCase();
             if (m.includes('diamond')) return `<span class="oa-badge oa-diamond"><i class="fas fa-gem"></i> Diamond</span>`;
             if (m.includes('gold')) return `<span class="oa-badge oa-gold"><i class="fas fa-medal"></i> Gold</span>`;
@@ -645,18 +660,13 @@
             if (d.is_hijacker) {
                 html += `<div class="alert alert-danger shadow-sm border-danger">
                             <h5><i class="fas fa-exclamation-triangle"></i> Warning: Hijacker Journal</h5>
-                            <p class="mb-0">This journal has been flagged as a fraudulent/hijacker website. Researchers are strongly advised to avoid it and instead submit to the authentic journal.</p>
+                            <p class="mb-0">This journal has been flagged as a fraudulent/hijacker website. Researchers are strongly advised to avoid it and instead submit to the authentic journal: <strong>${d.original_journal || 'Unknown Original'}</strong>.</p>
                          </div>`;
-            }
-
-            // Combine APC safely
-            let apcDisplay = 'Not Available';
-            if (d.apc && d.apc.toLowerCase() === 'no') {
-                apcDisplay = 'No APC';
-            } else if (d.apc_amount) {
-                apcDisplay = `${d.apc_amount} ${d.apc_currency}`.trim();
-            } else if (d.apc && d.apc.toLowerCase() === 'yes') {
-                apcDisplay = 'Yes (Amount Unknown)';
+            } else if (d.is_hijacked_target) {
+                html += `<div class="alert alert-warning shadow-sm border-warning">
+                            <h5><i class="fas fa-info-circle"></i> Note: Identity Hijacking Risk</h5>
+                            <p class="mb-0">The identity of this journal was hijacked by a malicious website. Please ensure you are interacting with the authentic journal directly.</p>
+                         </div>`;
             }
 
             html += `<div class="detail-desc">
@@ -664,6 +674,14 @@
                         <div>${formatDisplay(d.description)}</div>
                     </div>
                     <div class="detail-grid">
+                        <div class="detail-item">
+                            <span class="detail-label">ISSN (Print)</span>
+                            <span class="detail-value">${formatISSN(d.issn_print)}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">E-ISSN (Online)</span>
+                            <span class="detail-value">${formatISSN(d.issn_electronic)}</span>
+                        </div>
                         <div class="detail-item">
                             <span class="detail-label">Publisher</span>
                             <span class="detail-value">${formatDisplay(d.publisher)}</span>
@@ -686,23 +704,19 @@
                         </div>
                         <div class="detail-item">
                             <span class="detail-label">APC (Article Processing Charge)</span>
-                            <span class="detail-value">${apcDisplay}</span>
+                            <span class="detail-value">${d.apc_amount !== 'NA' ? d.apc_amount : (d.apc === 'No' ? 'No APC' : 'NA')}</span>
                         </div>
                         <div class="detail-item">
                             <span class="detail-label">License</span>
                             <span class="detail-value">${formatDisplay(d.license)}</span>
                         </div>
                         <div class="detail-item">
-                            <span class="detail-label">FLoRA Studies</span>
-                            <span class="detail-value">${formatDisplay(d.flora_studies)}</span>
+                            <span class="detail-label">Replications</span>
+                            <span class="detail-value">${d.flora_studies === 'NA' ? '0' : d.flora_studies} total number of replications and reproductions in <a href="https://forrt.org/replication-hub/flora/" target="_blank">FLoRA</a></span>
                         </div>
                         <div class="detail-item">
                             <span class="detail-label">Country / Region</span>
-                            <span class="detail-value">${formatDisplay(d.country)} ${d.region ? `(${d.region})` : ''}</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Coverage</span>
-                            <span class="detail-value">${formatDisplay(d.coverage)}</span>
+                            <span class="detail-value">${formatDisplay(d.country)} ${d.region && d.region !== 'NA' ? `(${d.region})` : ''}</span>
                         </div>
                         <div class="detail-item">
                             <span class="detail-label">Areas</span>
@@ -717,7 +731,7 @@
             return html;
         }
 
-        // Custom filtering functions (using rowData directly avoids race conditions)
+        // Custom filtering functions 
         $.fn.dataTable.ext.search.push(function(settings, searchData, dataIndex, rowData) {
             if (!rowData) return false;
 
@@ -754,45 +768,46 @@
 
                     const dataset = results.data.map(row => {
                         let areasArr = [];
-                        let rawAreas = extractVal(row, ['areas', 'Areas', 'subjects', 'Subjects']);
-                        if (rawAreas) {
+                        let rawAreas = extractVal(row, ['areas', 'Areas', 'subjects', 'Subjects', 'categories', 'Categories', 'subject_area']);
+                        if (rawAreas !== 'NA') {
                             areasArr = rawAreas.split(';').map(a => a.trim()).filter(a => a.length > 0);
                             areasArr.forEach(a => allUniqueAreas.add(a));
                         }
 
-                        // Evaluate Boolean hijacked flag
                         const isHijackedFlag = extractVal(row, ['is_hijacked']).toUpperCase();
                         const isHijacker = (isHijackedFlag === 'TRUE');
-                        
+                        const originalName = extractVal(row, ['Original.journal', 'original_journal']);
+
                         return {
-                            // Extract mapped identifiers
                             title: extractVal(row, ['master_journal_name', 'title']),
-                            issn: extractVal(row, ['issn_merge', 'issn_print', 'issn']),
-                            sjr: extractVal(row, ['sjr', 'SJR']),
-                            h_index: extractVal(row, ['h_index', 'H_index']),
-                            total_docs: extractVal(row, ['total_docs_3years']), // Left as fallback
-                            retractions: extractVal(row, ['rwdb_retraction_count', 'retractions']) || '0',
+                            issn: extractVal(row, ['issn_merge', 'issn']),
+                            issn_print: extractVal(row, ['issn_print', 'Issn', 'ISSN']),
+                            issn_electronic: extractVal(row, ['issn_electronic', 'Eissn', 'EISSN']),
+                            journal_url: extractVal(row, ['url', 'journal_url', 'Journal.URL', 'Journal_URL', 'doaj_url']),
+
+                            sjr: extractVal(row, ['sjr', 'SJR', 'sjr_score']),
+                            h_index: extractVal(row, ['h_index', 'H_index', 'h.index']),
+                            total_docs: extractVal(row, ['total_docs_3years', 'total_docs', 'Total_Docs']),
+                            retractions: extractVal(row, ['rwdb_retraction_count', 'retractions', 'Retractions']) || '0',
                             top_factor: extractVal(row, ['top_factor_score', 'top_factor']),
                             
-                            // OA Info
                             oa_model: extractVal(row, ['doaj_oa_model', 'oa_model']),
                             apc: extractVal(row, ['apc']),
                             apc_amount: extractVal(row, ['apc_amount']), 
-                            apc_currency: extractVal(row, ['apc_currency']), 
                             license: extractVal(row, ['license', 'License']),
 
-                            // Expanded details info
-                            review_process: extractVal(row, ['review_process']),
+                            review_process: extractVal(row, ['review_process', 'Review_process', 'Peer_review']),
                             plagiarism_screening: extractVal(row, ['plagiarism_screening']),
                             nlj_level: extractVal(row, ['nlj_level_2025', 'nlj_level_2024']),
                             flora_studies: extractVal(row, ['flora_total_studies']),
 
                             is_hijacker: isHijacker,
+                            is_hijacked_target: false, 
+                            original_journal: originalName,
 
                             publisher: extractVal(row, ['Publisher', 'publisher']),
                             country: extractVal(row, ['Country', 'country']),
                             region: extractVal(row, ['Region', 'region']),
-                            coverage: extractVal(row, ['Coverage', 'coverage']),
                             description: extractVal(row, ['Description', 'description']),
                             societies: extractVal(row, ['Societies', 'societies']),
                             areas_raw: rawAreas,
@@ -812,7 +827,7 @@
                         const checkbox = document.createElement('input');
                         checkbox.type = 'checkbox';
                         checkbox.value = area;
-                        checkbox.id = `area-${area.replace(/\s+/g, '-')}`;
+                        checkbox.id = `area-${area.replace(/[\s\W]+/g, '-')}`;
                         
                         checkbox.addEventListener('change', function() {
                             if (this.checked) selectedAreas.add(this.value);
@@ -846,7 +861,7 @@
                         data: dataset,
                         dom: 'rt<"row mt-3"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
                         pageLength: 20,
-                        order: [[1, 'asc']],
+                        order: [[8, 'desc']], // Sort by TOP Factor natively
                         createdRow: function(row, data) {
                             if (data.is_hijacker) {
                                 $(row).addClass('table-danger');
@@ -861,28 +876,50 @@
                             },
                             { 
                                 data: 'title', 
-                                defaultContent: '',
-                                className: 'journal-title',
+                                defaultContent: 'NA',
                                 render: function(data, type, row) {
-                                    if(row.is_hijacker) {
-                                        return `<span class="text-danger fw-bold">${data}</span> <span class="hijacker-badge">🚨 HIJACKER</span>`;
+                                    let displayTitle = data !== 'NA' ? data : 'NA';
+                                    
+                                    if (row.journal_url !== 'NA') {
+                                        let cleanUrl = row.journal_url.startsWith('http') ? row.journal_url : `https://${row.journal_url}`;
+                                        displayTitle = `<a href="${cleanUrl}" target="_blank" class="journal-title-link journal-title">${displayTitle}</a>`;
+                                    } else {
+                                        displayTitle = `<span class="journal-title">${displayTitle}</span>`;
                                     }
-                                    return data;
+
+                                    if(row.is_hijacker) {
+                                        return `<span class="text-danger fw-bold">${displayTitle}</span> <span class="hijacker-badge">🚨 HIJACKER</span>`;
+                                    }
+                                    return displayTitle;
                                 }
                             },
                             { 
                                 data: 'oa_model', 
-                                defaultContent: '',
+                                defaultContent: 'NA',
                                 render: function(data) { return getOABadge(data); }
                             },
-                            { data: 'issn', defaultContent: '' },
-                            { data: 'sjr', defaultContent: '' },
-                            { data: 'h_index', defaultContent: '' },
-                            { data: 'total_docs', defaultContent: '' },
+                            { 
+                                data: 'issn', 
+                                defaultContent: 'NA',
+                                render: function(data) { return formatISSN(data); }
+                            },
+                            { data: 'sjr', defaultContent: 'NA' },
+                            { data: 'h_index', defaultContent: 'NA' },
+                            { data: 'total_docs', defaultContent: 'NA' },
                             { data: 'retractions', defaultContent: '0' },
-                            { data: 'top_factor', defaultContent: '' },
+                            { 
+                                data: 'top_factor', 
+                                defaultContent: 'NA',
+                                render: function(data, type) {
+                                    // Forces "NA" values to the bottom when sorting numerically
+                                    if (type === 'sort' || type === 'type') {
+                                        return data === 'NA' ? -999 : parseFloat(data);
+                                    }
+                                    return data;
+                                }
+                            },
                             
-                            // Hidden searchable text
+                            // Hidden searchable fields
                             { data: 'publisher', visible: false, defaultContent: '' },
                             { data: 'description', visible: false, defaultContent: '' }
                         ],
