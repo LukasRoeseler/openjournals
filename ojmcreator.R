@@ -1,16 +1,13 @@
 # OJM (Open Journal Master) Creation --------------------------------------
 # This script reads individual datasets and creates the OJM from these
 
-
 # 1. Setup & Packages -----------------------------------------------------
-
 list.of.packages <- c("ggplot2", "psych", "devtools", "openxlsx", 
                       "RCurl", "markdown", "dplyr", "tidyr", "stringr", "httr", "readr")
 
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages)
 
-# Load packages
 library(dplyr)
 library(tidyr)
 library(stringr)
@@ -27,12 +24,10 @@ cat("Processing TOP Factors...\n")
 topfactor <- read.csv("https://osf.io/qatkz/download/") %>%
   mutate(
     issn_merge = str_remove_all(Issn, "-"),
-    # Convert empty strings to proper NAs to prevent bad merges
     issn_merge = na_if(trimws(issn_merge), ""), 
     journal_name_top = tolower(trimws(Journal))
   ) %>%
   rename(top_factor_score = Total) %>%
-  # Deduplicate by ISSN and Name (ensures we don't accidentally delete multiple journals that just lack an ISSN)
   distinct(issn_merge, journal_name_top, .keep_all = TRUE)
 
 
@@ -64,7 +59,6 @@ flora <- read.csv("https://raw.githubusercontent.com/forrtproject/FReD-data/refs
     values_fill = list(count = 0)
   ) %>%
   mutate(flora_total_studies = rowSums(across(where(is.numeric)))) %>%
-  # Group by Name here instead of ISSN so journals without ISSNs don't get squashed together
   group_by(journal_name_flora) %>%
   slice_max(order_by = flora_total_studies, n = 1, with_ties = FALSE) %>%
   ungroup()
@@ -91,7 +85,7 @@ if(file.exists("Data/Retraction Watch Hijacked Journals Checker 2026-03-13.xlsx"
     mutate(
       issn_merge = str_remove_all(`ISSN.(Original)`, "-"),
       issn_merge = na_if(trimws(issn_merge), ""),
-      issn_merge = na_if(issn_merge, "NA"), # Extra check in case gsub created literal "NA" text
+      issn_merge = na_if(issn_merge, "NA"),
       journal_name_hjc = tolower(trimws(`Original.journal`)),
       is_hijacked = TRUE
     ) %>%
@@ -105,7 +99,6 @@ if(file.exists("Data/Retraction Watch Hijacked Journals Checker 2026-03-13.xlsx"
 # 6. DOAJ -----------------------------------------------------------------
 cat("Processing DOAJ...\n")
 
-# Read from your local file
 doaj_meta <- read_csv("Data/journalcsv__doaj_20260313_1326_utf8.csv", show_col_types = FALSE)
 
 doaj_clean <- doaj_meta %>%
@@ -133,41 +126,80 @@ doaj_clean <- doaj_meta %>%
   distinct(issn_merge, .keep_all = TRUE)
 
 
-# 7. Merge Master Database (OJM) ------------------------------------------
+# 7. SCImago Journal Rank (SJR) -------------------------------------------
+cat("Processing SJR...\n")
+
+sjr_raw_url <- "https://github.com/ikashnitsky/sjrdata/raw/refs/heads/master/data/sjr_journals.rda"
+download.file(sjr_raw_url, "sjr_data", mode = "wb") 
+load("sjr_data")
+
+sjr_clean <- sjr_journals %>%
+  filter(year == max(year, na.rm = TRUE)) %>%
+  mutate(
+    issn_merge = substr(str_remove_all(issn, "-"), 1, 8),
+    issn_merge = na_if(trimws(issn_merge), ""),
+    journal_name_sjr = tolower(trimws(title))
+  ) %>%
+  select(issn_merge, journal_name_sjr, sjr, h_index, categories) %>%
+  filter(!is.na(issn_merge)) %>%
+  distinct(issn_merge, journal_name_sjr, .keep_all = TRUE)
+
+
+# 8. The Nordic List ------------------------------------------------------
+cat("Processing Nordic List...\n")
+
+# Reading from your local file. 
+# check.names = FALSE ensures spaces in column names aren't converted to dots.
+nlj <- read.csv2("Data/2026-03-13 Scientific Journals and Series.csv", check.names = FALSE)
+
+nlj_clean <- nlj %>%
+  mutate(
+    # Combine print and online ISSN, prioritize print
+    issn_merge = coalesce(na_if(trimws(`Print ISSN`), ""), na_if(trimws(`Online ISSN`), "")),
+    issn_merge = str_remove_all(issn_merge, "-"),
+    issn_merge = na_if(trimws(issn_merge), ""),
+    journal_name_nlj = tolower(trimws(`Original Title`))
+  ) %>%
+  # Keep only the most relevant columns to prevent massive bloat
+  select(issn_merge, journal_name_nlj, nlj_level_2025 = `Level 2025`, nlj_level_2024 = `Level 2024`) %>%
+  filter(!is.na(issn_merge)) %>%
+  distinct(issn_merge, journal_name_nlj, .keep_all = TRUE)
+
+
+# 9. Merge Master Database (OJM) ------------------------------------------
 cat("Merging all databases into OJM...\n")
 
-# Step 1: Combine all datasets using full_join. 
-# na_matches = "never" prevents R from mashing missing ISSNs together!
 ojm <- doaj_clean %>%
   full_join(topfactor, by = "issn_merge", na_matches = "never") %>%
   full_join(flora, by = "issn_merge", na_matches = "never") %>%
-  full_join(hjc_clean, by = "issn_merge", na_matches = "never")
+  full_join(hjc_clean, by = "issn_merge", na_matches = "never") %>%
+  full_join(sjr_clean, by = "issn_merge", na_matches = "never") %>%
+  full_join(nlj_clean, by = "issn_merge", na_matches = "never")
 
-# Step 2: Create a single unified Journal Name column
 ojm <- ojm %>%
   mutate(
     master_journal_name = coalesce(
       journal_name_doaj, 
       journal_name_top,
       journal_name_flora,
-      journal_name_hjc
+      journal_name_hjc,
+      journal_name_sjr,
+      journal_name_nlj
     ),
-    # If a journal didn't come from the hijacked list, make it explicitly FALSE instead of NA
     is_hijacked = replace_na(is_hijacked, FALSE) 
   )
 
-# Step 3: Join Retraction Watch (which only has Names, no ISSN)
 ojm <- ojm %>%
   left_join(rwdb_clean, by = c("master_journal_name" = "journal_name_rwdb"), na_matches = "never") %>%
   mutate(rwdb_retraction_count = replace_na(rwdb_retraction_count, 0))
 
 
-# 8. Clean up and Save ----------------------------------------------------
+# 10. Clean up and Save ---------------------------------------------------
 
-# Reorder columns to put important identifiers first, followed by your requested DOAJ variables
+# Reorder columns to put important identifiers and requested variables first
 ojm <- ojm %>%
   relocate(issn_merge, master_journal_name, rwdb_retraction_count, top_factor_score, doaj_oa_model, 
-           is_hijacked, review_process, apc, apc_amount, plagiarism_screening)
+           is_hijacked, sjr, h_index, nlj_level_2025, review_process, apc, apc_amount, plagiarism_screening)
 
 write.csv(ojm, file = "Data/ojmdb.csv", row.names = FALSE)
-cat("Done! Master database saved as 'ojmdb.csv'.\n")
+cat("Done! Master database saved as 'Data/ojmdb.csv'.\n")

@@ -218,6 +218,9 @@
         .table > tbody > tr > td { vertical-align: middle; }
         .table > tbody > tr:hover > td { background-color: var(--row-hover) !important; }
 
+        /* Capitalizes the master_journal_name for a cleaner look */
+        .journal-title { text-transform: capitalize; }
+
         td.details-control { cursor: pointer; text-align: center; color: var(--link-color); font-size: 1.1rem; width: 40px; }
         td.details-control i { transition: transform 0.2s ease; }
         tr.shown td.details-control i { transform: rotate(90deg); }
@@ -415,14 +418,11 @@
                         If you work with this tool or find it helpful, please know that all credit should go to 
                         the creators of the subsequent databases. Please use the recommended citations when utilizing this data.
                     </div>
-
-                    <div class="alert alert-info py-2 mb-4" style="font-size: 0.9rem;">
-                        <i class="fas fa-info-circle me-1"></i> <strong>Note on TOP Factor:</strong> As of February 2025, TOP Factor scores will no longer be added or updated. The information on this page is for general reference only. Please go directly to journal or publisher pages to see their current policies.
-                    </div>
                     
                     <div class="db-card card bg-transparent">
                         <h4 class="db-title">SCImago Journal Data</h4>
-                        <p><strong>Link:</strong> <a href="http://www.scimagojr.com" target="_blank">http://www.scimagojr.com</a></p>
+                        <p><strong>Portal Link:</strong> <a href="http://www.scimagojr.com" target="_blank">http://www.scimagojr.com</a></p>
+                        <p><strong>Data Link:</strong> <a href="https://github.com/ikashnitsky/sjrdata/raw/refs/heads/master/data/sjr_journals.rda" target="_blank">sjr_journals.rda (GitHub)</a></p>
                         <div class="db-citation">SCImago, (n.d.). SJR — SCImago Journal & Country Rank [Portal]. Retrieved from http://www.scimagojr.com</div>
                     </div>
 
@@ -458,11 +458,15 @@
                     <div class="db-card card bg-transparent">
                         <h4 class="db-title">COS TOP Factors</h4>
                         <p>Transparency and Openness Promotion guidelines.</p>
+                        <div class="alert alert-info py-2 mt-3 mb-0" style="font-size: 0.9rem;">
+                            <i class="fas fa-info-circle me-1"></i> <strong>Note:</strong> As of February 2025, TOP Factor scores will no longer be added or updated. The information on this page is for general reference only. Please go directly to journal or publisher pages to see their current policies.
+                        </div>
                     </div>
 
                     <div class="db-card card bg-transparent mb-0">
                         <h4 class="db-title">The Nordic List</h4>
-                        <p class="mb-0">Norwegian Register for Scientific Journals, Series and Publishers.</p>
+                        <p>Norwegian Register for Scientific Journals, Series and Publishers.</p>
+                        <p class="mb-0"><strong>Link:</strong> <a href="https://kanalregister.hkdir.no/publiseringskanaler/AlltidFerskListeTidsskrift2SomCsv" target="_blank">Download CSV</a></p>
                     </div>
 
                 </div>
@@ -513,7 +517,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 
     <script>
-        const CSV_URL = 'https://raw.githubusercontent.com/LukasRoeseler/openjournals/refs/heads/main/2026-03-13_ojdb.csv';
+        const CSV_URL = 'https://raw.githubusercontent.com/LukasRoeseler/openjournals/refs/heads/main/Data/ojmdb.csv';
 
         let selectedAreas = new Set();
         let table; 
@@ -579,13 +583,18 @@
             if (d.is_hijacker) {
                 html += `<div class="alert alert-danger shadow-sm border-danger">
                             <h5><i class="fas fa-exclamation-triangle"></i> Warning: Hijacker Journal</h5>
-                            <p class="mb-0">This journal has been flagged as a fraudulent/hijacker website. Researchers are strongly advised to avoid it and instead submit to the authentic journal: <strong>${d.original_journal || 'Unknown Original'}</strong>.</p>
+                            <p class="mb-0">This journal has been flagged as a fraudulent/hijacker website. Researchers are strongly advised to avoid it and instead submit to the authentic journal.</p>
                          </div>`;
-            } else if (d.is_hijacked_target) {
-                html += `<div class="alert alert-warning shadow-sm border-warning">
-                            <h5><i class="fas fa-info-circle"></i> Note: Identity Hijacking Risk</h5>
-                            <p class="mb-0">The identity of this journal was hijacked by a malicious website (<em>${d.hijacker_name}</em>). Please ensure you are interacting with the authentic journal directly: <strong>${d.original_journal || d.title}</strong>.</p>
-                         </div>`;
+            }
+
+            // Combine APC safely
+            let apcDisplay = 'Not Available';
+            if (d.apc && d.apc.toLowerCase() === 'no') {
+                apcDisplay = 'No APC';
+            } else if (d.apc_amount) {
+                apcDisplay = `${d.apc_amount} ${d.apc_currency}`.trim();
+            } else if (d.apc && d.apc.toLowerCase() === 'yes') {
+                apcDisplay = 'Yes (Amount Unknown)';
             }
 
             html += `<div class="detail-desc">
@@ -602,12 +611,28 @@
                             <span class="detail-value">${formatDisplay(d.societies)}</span>
                         </div>
                         <div class="detail-item">
+                            <span class="detail-label">Nordic List Level</span>
+                            <span class="detail-value">${formatDisplay(d.nlj_level)}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Peer Review Process</span>
+                            <span class="detail-value">${formatDisplay(d.review_process)}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Plagiarism Screening</span>
+                            <span class="detail-value">${formatDisplay(d.plagiarism_screening)}</span>
+                        </div>
+                        <div class="detail-item">
                             <span class="detail-label">APC (Article Processing Charge)</span>
-                            <span class="detail-value">${d.apc_amount ? d.apc_amount + ' ' + d.apc_currency : 'None / Not Available'}</span>
+                            <span class="detail-value">${apcDisplay}</span>
                         </div>
                         <div class="detail-item">
                             <span class="detail-label">License</span>
                             <span class="detail-value">${formatDisplay(d.license)}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">FLoRA Studies</span>
+                            <span class="detail-value">${formatDisplay(d.flora_studies)}</span>
                         </div>
                         <div class="detail-item">
                             <span class="detail-label">Country / Region</span>
@@ -630,9 +655,8 @@
             return html;
         }
 
-        // Custom filtering functions
-        $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
-            const rowData = table.row(dataIndex).data();
+        // Custom filtering functions (using rowData directly avoids race conditions)
+        $.fn.dataTable.ext.search.push(function(settings, searchData, dataIndex, rowData) {
             if (!rowData) return false;
 
             // 1. Hide Hijackers Filter
@@ -641,7 +665,7 @@
 
             // 2. OA Filter
             const oaFilter = document.querySelector('input[name="oaFilter"]:checked').value;
-            const modelLower = rowData.oa_model.toLowerCase();
+            const modelLower = (rowData.oa_model || '').toLowerCase();
             if (oaFilter === 'Diamond' && !modelLower.includes('diamond')) return false;
             if (oaFilter === 'Gold' && !modelLower.includes('gold')) return false;
 
@@ -668,48 +692,50 @@
 
                     const dataset = results.data.map(row => {
                         let areasArr = [];
-                        let rawAreas = extractVal(row, ['areas', 'Areas']);
+                        let rawAreas = extractVal(row, ['areas', 'Areas', 'subjects', 'Subjects']);
                         if (rawAreas) {
                             areasArr = rawAreas.split(';').map(a => a.trim()).filter(a => a.length > 0);
                             areasArr.forEach(a => allUniqueAreas.add(a));
                         }
 
-                        const currentIssn = extractVal(row, ['issn']);
-                        const hijackedIssn = extractVal(row, ['ISSN.(Hijacked)', 'issn_hijacked', 'issn_hijacked_journal']);
-                        const hijackerName = extractVal(row, ['Hijacked-Journal.Title', 'hijacked_journal_title']);
-                        const originalName = extractVal(row, ['Original.journal', 'original_journal']);
-
-                        const isHijacker = (hijackedIssn !== '' && currentIssn !== '' && hijackedIssn.includes(currentIssn));
-                        const isHijackedTarget = (hijackerName !== '');
-
+                        // Evaluate Boolean hijacked flag
+                        const isHijackedFlag = extractVal(row, ['is_hijacked']).toUpperCase();
+                        const isHijacker = (isHijackedFlag === 'TRUE');
+                        
                         return {
-                            title: extractVal(row, ['title']),
-                            issn: currentIssn,
-                            sjr: extractVal(row, ['sjr']),
-                            h_index: extractVal(row, ['h_index']),
-                            total_docs: extractVal(row, ['total_docs_3years']),
-                            retractions: extractVal(row, ['retractions', 'Retractions']) || '0',
-                            top_factor: extractVal(row, ['Total', 'total', 'top_factor']),
+                            // Extract mapped identifiers
+                            title: extractVal(row, ['master_journal_name', 'title']),
+                            issn: extractVal(row, ['issn_merge', 'issn_print', 'issn']),
+                            sjr: extractVal(row, ['sjr', 'SJR']),
+                            h_index: extractVal(row, ['h_index', 'H_index']),
+                            total_docs: extractVal(row, ['total_docs_3years']), // Left as fallback
+                            retractions: extractVal(row, ['rwdb_retraction_count', 'retractions']) || '0',
+                            top_factor: extractVal(row, ['top_factor_score', 'top_factor']),
                             
-                            oa_model: extractVal(row, ['oa_model', 'OA_model', 'open_access']),
-                            apc_amount: extractVal(row, ['apc_amount', 'APC_amount']),
-                            apc_currency: extractVal(row, ['apc_currency', 'APC_currency']),
+                            // OA Info
+                            oa_model: extractVal(row, ['doaj_oa_model', 'oa_model']),
+                            apc: extractVal(row, ['apc']),
+                            apc_amount: extractVal(row, ['apc_amount']), 
+                            apc_currency: extractVal(row, ['apc_currency']), 
                             license: extractVal(row, ['license', 'License']),
 
-                            is_hijacker: isHijacker,
-                            is_hijacked_target: isHijackedTarget,
-                            hijacker_name: hijackerName,
-                            original_journal: originalName,
+                            // Expanded details info
+                            review_process: extractVal(row, ['review_process']),
+                            plagiarism_screening: extractVal(row, ['plagiarism_screening']),
+                            nlj_level: extractVal(row, ['nlj_level_2025', 'nlj_level_2024']),
+                            flora_studies: extractVal(row, ['flora_total_studies']),
 
-                            publisher: extractVal(row, ['publisher']),
-                            country: extractVal(row, ['country']),
-                            region: extractVal(row, ['region']),
-                            coverage: extractVal(row, ['coverage']),
+                            is_hijacker: isHijacker,
+
+                            publisher: extractVal(row, ['Publisher', 'publisher']),
+                            country: extractVal(row, ['Country', 'country']),
+                            region: extractVal(row, ['Region', 'region']),
+                            coverage: extractVal(row, ['Coverage', 'coverage']),
                             description: extractVal(row, ['Description', 'description']),
                             societies: extractVal(row, ['Societies', 'societies']),
                             areas_raw: rawAreas,
                             areas_list: areasArr,
-                            guidelines: extractVal(row, ['Author.guideline.url', 'author.guideline.url', 'author_guideline_url'])
+                            guidelines: extractVal(row, ['Author.guideline.url', 'author_guideline_url'])
                         };
                     });
 
@@ -774,6 +800,7 @@
                             { 
                                 data: 'title', 
                                 defaultContent: '',
+                                className: 'journal-title',
                                 render: function(data, type, row) {
                                     if(row.is_hijacker) {
                                         return `<span class="text-danger fw-bold">${data}</span> <span class="hijacker-badge">🚨 HIJACKER</span>`;
