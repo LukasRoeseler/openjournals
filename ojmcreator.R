@@ -109,7 +109,8 @@ doaj_clean <- doaj_meta %>%
     apc = APC,
     apc_amount = `APC amount`,
     review_process = `Review process`,
-    plagiarism_screening = `Journal plagiarism screening policy`
+    plagiarism_screening = `Journal plagiarism screening policy`,
+    license = `Journal license`
   ) %>%
   mutate(
     issn_merge = coalesce(issn_print, issn_electronic),
