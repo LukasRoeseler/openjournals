@@ -140,7 +140,8 @@ sjr_clean <- sjr_journals %>%
     issn_merge = na_if(trimws(issn_merge), ""),
     journal_name_sjr = tolower(trimws(title))
   ) %>%
-  select(issn_merge, journal_name_sjr, sjr, h_index, categories) %>%
+  # Added 'total_docs_3years' and 'areas' as requested
+  select(issn_merge, journal_name_sjr, sjr, h_index, total_docs_3years, areas, categories) %>%
   filter(!is.na(issn_merge)) %>%
   distinct(issn_merge, journal_name_sjr, .keep_all = TRUE)
 
@@ -148,8 +149,6 @@ sjr_clean <- sjr_journals %>%
 # 8. The Nordic List ------------------------------------------------------
 cat("Processing Nordic List...\n")
 
-# Reading from your local file. 
-# check.names = FALSE ensures spaces in column names aren't converted to dots.
 nlj <- read.csv2("Data/2026-03-13 Scientific Journals and Series.csv", check.names = FALSE)
 
 nlj_clean <- nlj %>%
@@ -160,7 +159,6 @@ nlj_clean <- nlj %>%
     issn_merge = na_if(trimws(issn_merge), ""),
     journal_name_nlj = tolower(trimws(`Original Title`))
   ) %>%
-  # Keep only the most relevant columns to prevent massive bloat
   select(issn_merge, journal_name_nlj, nlj_level_2025 = `Level 2025`, nlj_level_2024 = `Level 2024`) %>%
   filter(!is.na(issn_merge)) %>%
   distinct(issn_merge, journal_name_nlj, .keep_all = TRUE)
@@ -196,10 +194,11 @@ ojm <- ojm %>%
 
 # 10. Clean up and Save ---------------------------------------------------
 
-# Reorder columns to put important identifiers and requested variables first
+# Reorder columns: Added total_docs_3years, areas, and categories to the list
 ojm <- ojm %>%
   relocate(issn_merge, master_journal_name, rwdb_retraction_count, top_factor_score, doaj_oa_model, 
-           is_hijacked, sjr, h_index, nlj_level_2025, review_process, apc, apc_amount, plagiarism_screening)
+           is_hijacked, sjr, h_index, total_docs_3years, areas, categories, 
+           nlj_level_2025, review_process, apc, apc_amount, plagiarism_screening)
 
 write.csv(ojm, file = "Data/ojmdb.csv", row.names = FALSE)
 cat("Done! Master database saved as 'Data/ojmdb.csv'.\n")
