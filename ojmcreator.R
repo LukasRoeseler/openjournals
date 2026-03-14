@@ -201,5 +201,29 @@ ojm <- ojm %>%
            is_hijacked, sjr, h_index, total_docs_3years, areas, categories, 
            nlj_level_2025, review_process, apc, apc_amount, plagiarism_screening)
 
-write.csv(ojm, file = "Data/ojmdb.csv", row.names = FALSE)
+# write.csv(ojm, file = "Data/ojmdb.csv", row.names = FALSE)
+
+# Falls das Paket nicht installiert ist: install.packages("base64enc")
+library(base64enc)
+
+# 1. Speichere das CSV in einer temporären Datei (zwingend in UTF-8 für saubere Sonderzeichen)
+temp_file <- tempfile(fileext = ".csv")
+write.csv(ojm, file = temp_file, row.names = FALSE, fileEncoding = "UTF-8")
+
+# 2. Lese die Datei als rohe Binärdaten (raw bytes) ein
+raw_data <- readBin(temp_file, what = "raw", n = file.info(temp_file)$size)
+
+# 3. Komprimiere die Daten stark mit GZIP
+compressed_data <- memCompress(raw_data, type = "gzip")
+
+# 4. Wandle die komprimierten Binärdaten in einen Base64-String um
+base64_string <- base64encode(compressed_data)
+
+# 5. Erstelle JavaScript-Code und speichere ihn ab
+js_content <- paste0("const compressedDataBase64 = '", base64_string, "';")
+writeLines(js_content, "Data/ojmdb_compressed.js")
+
+# Temporäre Datei aufräumen
+unlink(temp_file)
+
 cat("Done! Master database saved as 'Data/ojmdb.csv'.\n")
