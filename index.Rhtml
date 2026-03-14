@@ -523,6 +523,7 @@
                 <a href="https://github.com/LukasRoeseler/openjournals/" target="_blank">
                     <i class="fab fa-github ms-1"></i> github.com/LukasRoeseler/openjournals/
                 </a>
+                | Created with Gemini 3.1 Pro.
             </p>
         </div>
     </footer>
@@ -533,10 +534,14 @@
     <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    
+    <!-- Pako für die Entpackung -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+    
+    <!-- Deine komprimierte Datendatei -->
+    <script src="Data/ojmdb_compressed.js"></script>
 
     <script>
-        const CSV_URL = 'https://raw.githubusercontent.com/LukasRoeseler/openjournals/refs/heads/main/Data/ojmdb.csv';
-
         let selectedAreas = new Set();
         let table; 
 
@@ -599,11 +604,11 @@
         }
 
         function getOABadge(model) {
-            if (!model || model === 'NA') return '<span class="oa-badge oa-other text-muted">Unknown</span>';
+            if (!model || model === 'NA') return '<span class="oa-badge oa-other">Unknown</span>';
             const m = model.toLowerCase();
             if (m.includes('diamond')) return `<span class="oa-badge oa-diamond"><i class="fas fa-gem"></i> Diamond</span>`;
             if (m.includes('gold')) return `<span class="oa-badge oa-gold"><i class="fas fa-medal"></i> Gold</span>`;
-            return `<span class="oa-badge oa-other"><i class="fas fa-lock-open text-muted"></i> ${model}</span>`;
+            return `<span class="oa-badge oa-other"><i class="fas fa-lock-open"></i> ${model}</span>`;
         }
 
         // Expanded Row Formatting
@@ -666,7 +671,7 @@
                         </div>
                         <div class="detail-item">
                             <span class="detail-label">Replications</span>
-                            <span class="detail-value">${d.flora_studies === 'NA' ? '0' : d.flora_studies} replicated studies from this journal in <a href="https://forrt.org/replication-hub/flora/" target="_blank">FLoRA</a></span>
+                            <span class="detail-value">${(d.flora_studies === 'NA' || d.flora_studies === '') ? '0' : d.flora_studies} replicated studies from this journal in <a href="https://forrt.org/replication-hub/flora/" target="_blank">FLoRA</a></span>
                         </div>
                         <div class="detail-item">
                             <span class="detail-label">Country / Region</span>
@@ -709,213 +714,234 @@
             return true;
         });
 
+        function loadAndDecompressData() {
+            try {
+                // Prüfen ob die komprimierte Datei wirklich geladen wurde
+                if (typeof compressedDataBase64 === 'undefined') {
+                    throw new Error("Die Datei Data/ojmdb_compressed.js wurde nicht geladen. Hast du sie auf GitHub hochgeladen?");
+                }
+
+                // 1. Base64-String in Array umwandeln
+                const binaryString = atob(compressedDataBase64);
+                const bytes = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+
+                // 2. Mit pako entpacken
+                const csvText = pako.ungzip(bytes, { to: 'string' });
+
+                // 3. Parsen mit PapaParse
+                Papa.parse(csvText, {
+                    header: true,
+                    skipEmptyLines: true,
+                    complete: function(results) {
+                        
+                        let allUniqueAreas = new Set();
+
+                        const dataset = results.data.map(row => {
+                            let areasArr = [];
+                            let rawAreas = extractVal(row, ['areas', 'Areas', 'subjects', 'Subjects', 'categories', 'Categories', 'subject_area']);
+                            if (rawAreas !== 'NA') {
+                                areasArr = rawAreas.split(';').map(a => a.trim()).filter(a => a.length > 0);
+                                areasArr.forEach(a => allUniqueAreas.add(a));
+                            }
+
+                            const isHijackedFlag = extractVal(row, ['is_hijacked']).toUpperCase();
+                            const isHijacker = (isHijackedFlag === 'TRUE');
+                            const originalName = extractVal(row, ['Original.journal', 'original_journal']);
+
+                            return {
+                                title: extractVal(row, ['title', 'master_journal_name']),
+                                issn: extractVal(row, ['issn_merge', 'issn']),
+                                issn_print: extractVal(row, ['issn_print', 'Issn', 'ISSN']),
+                                issn_electronic: extractVal(row, ['issn_electronic', 'Eissn', 'EISSN']),
+                                journal_url: extractVal(row, ['url', 'journal_url', 'Journal.URL', 'Journal_URL', 'doaj_url']),
+
+                                sjr: extractVal(row, ['sjr', 'SJR', 'sjr_score']),
+                                h_index: extractVal(row, ['h_index', 'H_index', 'h.index']),
+                                total_docs: extractVal(row, ['total_docs_3years', 'total_docs', 'Total_Docs']),
+                                retractions: extractVal(row, ['rwdb_retraction_count', 'retractions', 'Retractions']) || '0',
+                                top_factor: extractVal(row, ['top_factor_score', 'top_factor']),
+                                
+                                oa_model: extractVal(row, ['doaj_oa_model', 'oa_model']),
+                                apc: extractVal(row, ['apc']),
+                                apc_amount: extractVal(row, ['apc_amount']), 
+                                license: extractVal(row, ['license', 'License']),
+
+                                review_process: extractVal(row, ['review_process', 'Review_process', 'Peer_review']),
+                                plagiarism_screening: extractVal(row, ['plagiarism_screening']),
+                                nlj_level: extractVal(row, ['nlj_level_2025', 'nlj_level_2024']),
+                                flora_studies: extractVal(row, ['flora_total_studies']),
+
+                                is_hijacker: isHijacker,
+                                is_hijacked_target: false, 
+                                original_journal: originalName,
+
+                                publisher: extractVal(row, ['Publisher', 'publisher']),
+                                country: extractVal(row, ['Country', 'country']),
+                                region: extractVal(row, ['Region', 'region']),
+                                description: extractVal(row, ['Description', 'description']),
+                                societies: extractVal(row, ['Societies', 'societies']),
+                                areas_raw: rawAreas,
+                                areas_list: areasArr,
+                                guidelines: extractVal(row, ['Author.guideline.url', 'author_guideline_url'])
+                            };
+                        });
+
+                        // Render Area Sidebar
+                        const areaContainer = document.getElementById('areaList');
+                        const fragment = document.createDocumentFragment();
+                        const sortedAreas = Array.from(allUniqueAreas).sort();
+                        
+                        sortedAreas.forEach(area => {
+                            const div = document.createElement('div');
+                            div.className = 'area-item';
+                            
+                            const checkbox = document.createElement('input');
+                            checkbox.type = 'checkbox';
+                            checkbox.value = area;
+                            checkbox.id = `area-${area.replace(/[\s\W]+/g, '-')}`;
+                            
+                            checkbox.addEventListener('change', function() {
+                                if (this.checked) selectedAreas.add(this.value);
+                                else selectedAreas.delete(this.value);
+                                table.draw();
+                            });
+
+                            const label = document.createElement('label');
+                            label.htmlFor = checkbox.id;
+                            label.textContent = area;
+
+                            div.appendChild(checkbox);
+                            div.appendChild(label);
+                            fragment.appendChild(div);
+                        });
+                        areaContainer.appendChild(fragment);
+
+                        document.getElementById('areaSearch').addEventListener('keyup', function() {
+                            const term = this.value.toLowerCase();
+                            const items = areaContainer.querySelectorAll('.area-item');
+                            items.forEach(item => {
+                                const label = item.querySelector('label').textContent.toLowerCase();
+                                item.style.display = label.includes(term) ? 'flex' : 'none';
+                            });
+                        });
+
+                        // RAM schonen
+                        results.data = null;
+
+                        $('#loading').hide();
+                        $('#oj-table').show();
+
+                        // Init DataTable
+                        table = $('#oj-table').DataTable({
+                            data: dataset,
+                            dom: 'rt<"row mt-3"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
+                            pageLength: 20,
+                            deferRender: true, 
+                            order: [[8, 'desc']], 
+                            createdRow: function(row, data) {
+                                if (data.is_hijacker) {
+                                    $(row).addClass('table-danger');
+                                }
+                            },
+                            columns: [
+                                {
+                                    className: 'details-control',
+                                    orderable: false,
+                                    data: null,
+                                    defaultContent: '<i class="fas fa-chevron-right"></i>'
+                                },
+                                { 
+                                    data: 'title', 
+                                    defaultContent: 'NA',
+                                    render: function(data, type, row) {
+                                        let displayTitle = data !== 'NA' ? data : 'NA';
+                                        
+                                        if (row.journal_url !== 'NA') {
+                                            let cleanUrl = row.journal_url.startsWith('http') ? row.journal_url : `https://${row.journal_url}`;
+                                            displayTitle = `<a href="${cleanUrl}" target="_blank" class="journal-title-link journal-title">${displayTitle}</a>`;
+                                        } else {
+                                            displayTitle = `<span class="journal-title">${displayTitle}</span>`;
+                                        }
+
+                                        if(row.is_hijacker) {
+                                            return `<span class="text-danger fw-bold">${displayTitle}</span> <span class="hijacker-badge">🚨 HIJACKER</span>`;
+                                        }
+                                        return displayTitle;
+                                    }
+                                },
+                                { 
+                                    data: 'oa_model', 
+                                    defaultContent: 'NA',
+                                    render: function(data) { return getOABadge(data); }
+                                },
+                                { 
+                                    data: 'issn', 
+                                    defaultContent: 'NA',
+                                    render: function(data) { return formatISSN(data); }
+                                },
+                                { data: 'sjr', defaultContent: 'NA' },
+                                { data: 'h_index', defaultContent: 'NA' },
+                                { data: 'total_docs', defaultContent: 'NA' },
+                                { data: 'retractions', defaultContent: '0' },
+                                { 
+                                    data: 'top_factor', 
+                                    defaultContent: 'NA',
+                                    render: function(data, type) {
+                                        if (type === 'sort' || type === 'type') {
+                                            return data === 'NA' ? -999 : parseFloat(data);
+                                        }
+                                        return data;
+                                    }
+                                },
+                                
+                                { data: 'publisher', visible: false, defaultContent: '' },
+                                { data: 'description', visible: false, defaultContent: '' }
+                            ],
+                            language: { emptyTable: "No journal data matches your criteria." }
+                        });
+
+                        // Search Link
+                        $('#customSearch').on('keyup', function() {
+                            table.search(this.value).draw();
+                        });
+
+                        // Sidebar Filter Triggers
+                        $('input[name="oaFilter"]').on('change', function() { table.draw(); });
+                        $('#hideHijackers').on('change', function() { table.draw(); });
+
+                        // Expand Child Rows
+                        $('#oj-table tbody').on('click', 'td.details-control', function () {
+                            const tr = $(this).closest('tr');
+                            const row = table.row(tr);
+
+                            if (row.child.isShown()) {
+                                row.child.hide();
+                                tr.removeClass('shown');
+                            } else {
+                                row.child(formatExpandedRow(row.data())).show();
+                                tr.addClass('shown');
+                            }
+                        });
+
+                    },
+                    error: function(error) {
+                        $('#loading').hide();
+                        $('#error-message').show().text('Error loading data: ' + error.message);
+                    }
+                });
+
+            } catch (error) {
+                $('#loading').hide();
+                $('#error-message').show().text('Daten konnten nicht geladen oder entpackt werden: ' + error.message);
+            }
+        }
+
         $(document).ready(function() {
             initTooltips();
-
-            Papa.parse(CSV_URL, {
-                download: true,
-                header: true,
-                skipEmptyLines: true,
-                complete: function(results) {
-                    
-                    let allUniqueAreas = new Set();
-
-                    const dataset = results.data.map(row => {
-                        let areasArr = [];
-                        let rawAreas = extractVal(row, ['areas', 'Areas', 'subjects', 'Subjects', 'categories', 'Categories', 'subject_area']);
-                        if (rawAreas !== 'NA') {
-                            areasArr = rawAreas.split(';').map(a => a.trim()).filter(a => a.length > 0);
-                            areasArr.forEach(a => allUniqueAreas.add(a));
-                        }
-
-                        const isHijackedFlag = extractVal(row, ['is_hijacked']).toUpperCase();
-                        const isHijacker = (isHijackedFlag === 'TRUE');
-                        const originalName = extractVal(row, ['Original.journal', 'original_journal']);
-
-                        return {
-                            title: extractVal(row, ['title', 'master_journal_name']),
-                            issn: extractVal(row, ['issn_merge', 'issn']),
-                            issn_print: extractVal(row, ['issn_print', 'Issn', 'ISSN']),
-                            issn_electronic: extractVal(row, ['issn_electronic', 'Eissn', 'EISSN']),
-                            journal_url: extractVal(row, ['url', 'journal_url', 'Journal.URL', 'Journal_URL', 'doaj_url']),
-
-                            sjr: extractVal(row, ['sjr', 'SJR', 'sjr_score']),
-                            h_index: extractVal(row, ['h_index', 'H_index', 'h.index']),
-                            total_docs: extractVal(row, ['total_docs_3years', 'total_docs', 'Total_Docs']),
-                            retractions: extractVal(row, ['rwdb_retraction_count', 'retractions', 'Retractions']) || '0',
-                            top_factor: extractVal(row, ['top_factor_score', 'top_factor']),
-                            
-                            oa_model: extractVal(row, ['doaj_oa_model', 'oa_model']),
-                            apc: extractVal(row, ['apc']),
-                            apc_amount: extractVal(row, ['apc_amount']), 
-                            license: extractVal(row, ['license', 'License']),
-
-                            review_process: extractVal(row, ['review_process', 'Review_process', 'Peer_review']),
-                            plagiarism_screening: extractVal(row, ['plagiarism_screening']),
-                            nlj_level: extractVal(row, ['nlj_level_2025', 'nlj_level_2024']),
-                            flora_studies: extractVal(row, ['flora_total_studies', 'flora_studies']),
-
-                            is_hijacker: isHijacker,
-                            is_hijacked_target: false, 
-                            original_journal: originalName,
-
-                            publisher: extractVal(row, ['Publisher', 'publisher']),
-                            country: extractVal(row, ['Country', 'country']),
-                            region: extractVal(row, ['Region', 'region']),
-                            description: extractVal(row, ['Description', 'description']),
-                            societies: extractVal(row, ['Societies', 'societies']),
-                            areas_raw: rawAreas,
-                            areas_list: areasArr,
-                            guidelines: extractVal(row, ['Author.guideline.url', 'author_guideline_url'])
-                        };
-                    });
-
-                    // Render Area Sidebar with DocumentFragment to prevent mobile crashes
-                    const areaContainer = document.getElementById('areaList');
-                    const fragment = document.createDocumentFragment();
-                    const sortedAreas = Array.from(allUniqueAreas).sort();
-                    
-                    sortedAreas.forEach(area => {
-                        const div = document.createElement('div');
-                        div.className = 'area-item';
-                        
-                        const checkbox = document.createElement('input');
-                        checkbox.type = 'checkbox';
-                        checkbox.value = area;
-                        checkbox.id = `area-${area.replace(/[\s\W]+/g, '-')}`;
-                        
-                        checkbox.addEventListener('change', function() {
-                            if (this.checked) selectedAreas.add(this.value);
-                            else selectedAreas.delete(this.value);
-                            table.draw();
-                        });
-
-                        const label = document.createElement('label');
-                        label.htmlFor = checkbox.id;
-                        label.textContent = area;
-
-                        div.appendChild(checkbox);
-                        div.appendChild(label);
-                        fragment.appendChild(div);
-                    });
-                    areaContainer.appendChild(fragment);
-
-                    document.getElementById('areaSearch').addEventListener('keyup', function() {
-                        const term = this.value.toLowerCase();
-                        const items = areaContainer.querySelectorAll('.area-item');
-                        items.forEach(item => {
-                            const label = item.querySelector('label').textContent.toLowerCase();
-                            item.style.display = label.includes(term) ? 'flex' : 'none';
-                        });
-                    });
-
-                    // Free PapaParse memory early
-                    results.data = null;
-
-                    $('#loading').hide();
-                    $('#oj-table').show();
-
-                    // Init DataTable
-                    table = $('#oj-table').DataTable({
-                        data: dataset,
-                        dom: 'rt<"row mt-3"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
-                        pageLength: 20,
-                        deferRender: true, // Prevents mobile freezing
-                        order: [[8, 'desc']], // Sort by TOP Factor natively
-                        createdRow: function(row, data) {
-                            if (data.is_hijacker) {
-                                $(row).addClass('table-danger');
-                            }
-                        },
-                        columns: [
-                            {
-                                className: 'details-control',
-                                orderable: false,
-                                data: null,
-                                defaultContent: '<i class="fas fa-chevron-right"></i>'
-                            },
-                            { 
-                                data: 'title', 
-                                defaultContent: 'NA',
-                                render: function(data, type, row) {
-                                    let displayTitle = data !== 'NA' ? data : 'NA';
-                                    
-                                    // Generate hyperlink for Journal Title if URL is present
-                                    if (row.journal_url !== 'NA') {
-                                        let cleanUrl = row.journal_url.startsWith('http') ? row.journal_url : `https://${row.journal_url}`;
-                                        displayTitle = `<a href="${cleanUrl}" target="_blank" class="journal-title-link journal-title">${displayTitle}</a>`;
-                                    } else {
-                                        displayTitle = `<span class="journal-title">${displayTitle}</span>`;
-                                    }
-
-                                    if(row.is_hijacker) {
-                                        return `<span class="text-danger fw-bold">${displayTitle}</span> <span class="hijacker-badge">🚨 HIJACKER</span>`;
-                                    }
-                                    return displayTitle;
-                                }
-                            },
-                            { 
-                                data: 'oa_model', 
-                                defaultContent: 'NA',
-                                render: function(data) { return getOABadge(data); }
-                            },
-                            { 
-                                data: 'issn', 
-                                defaultContent: 'NA',
-                                render: function(data) { return formatISSN(data); }
-                            },
-                            { data: 'sjr', defaultContent: 'NA' },
-                            { data: 'h_index', defaultContent: 'NA' },
-                            { data: 'total_docs', defaultContent: 'NA' },
-                            { data: 'retractions', defaultContent: '0' },
-                            { 
-                                data: 'top_factor', 
-                                defaultContent: 'NA',
-                                render: function(data, type) {
-                                    // Forces "NA" values to the bottom when sorting numerically
-                                    if (type === 'sort' || type === 'type') {
-                                        return data === 'NA' ? -999 : parseFloat(data);
-                                    }
-                                    return data;
-                                }
-                            },
-                            
-                            // Hidden searchable fields
-                            { data: 'publisher', visible: false, defaultContent: '' },
-                            { data: 'description', visible: false, defaultContent: '' }
-                        ],
-                        language: { emptyTable: "No journal data matches your criteria." }
-                    });
-
-                    // Search Link
-                    $('#customSearch').on('keyup', function() {
-                        table.search(this.value).draw();
-                    });
-
-                    // Sidebar Filter Triggers
-                    $('input[name="oaFilter"]').on('change', function() { table.draw(); });
-                    $('#hideHijackers').on('change', function() { table.draw(); });
-
-                    // Expand Child Rows
-                    $('#oj-table tbody').on('click', 'td.details-control', function () {
-                        const tr = $(this).closest('tr');
-                        const row = table.row(tr);
-
-                        if (row.child.isShown()) {
-                            row.child.hide();
-                            tr.removeClass('shown');
-                        } else {
-                            row.child(formatExpandedRow(row.data())).show();
-                            tr.addClass('shown');
-                        }
-                    });
-
-                },
-                error: function(error) {
-                    $('#loading').hide();
-                    $('#error-message').show().text('Error loading data: ' + error.message);
-                }
-            });
+            loadAndDecompressData();
         });
     </script>
 </body>
